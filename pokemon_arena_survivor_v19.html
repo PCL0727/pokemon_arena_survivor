@@ -600,7 +600,7 @@ const SPECIAL_DEFS = {
         for(let i=0;i<count;i++){
           const ang=(i/count)*Math.PI*2;
           bullets.push({x:p.x,y:p.y,vx:Math.cos(ang)*6,vy:Math.sin(ang)*6,r:5,
-            dmg:(7+st.level*3)*(p._dmgMult*(p.typeBonus[this.type]||1)),pierce:1,color:'#7fd4ff',kind:'watergun',life:67});
+            dmg:(7+st.level*3)*(p._dmgMult*(p.typeBonus[this.type]||1)),pierce:1,color:'#7fd4ff',kind:'watergun',life:100});
         }
       }
     }
@@ -611,10 +611,10 @@ const SPECIAL_DEFS = {
     desc:(lvl)=>{
       const maxR = 100+lvl*15, minR = 0;
       const cycleSec = Math.max(0.9, 2.2-lvl*0.09);
-      return `伸縮範圍 ${minR.toFixed(0)}~${maxR.toFixed(0)}px・每秒 ${Math.round(6+lvl*2.5)} 傷害・減速55%・伸縮週期 ${cycleSec.toFixed(1)}s`;
+      return `伸縮範圍 ${minR.toFixed(0)}~${maxR.toFixed(0)}px・每秒 ${Math.round(6+lvl*10)} 傷害・減速55%・伸縮週期 ${cycleSec.toFixed(1)}s`;
     },
     estimateDps(lvl,dmgMult,atkSpeed){
-      return (6+lvl*2.5)*dmgMult;
+      return (6+lvl*10)*dmgMult;
     },
     update(dt,p,st){
       const maxR = 100+st.level*15;
@@ -625,7 +625,7 @@ const SPECIAL_DEFS = {
       const wave = t<0.5 ? t*2 : 2-t*2; // 0 -> 1（外擴極限） -> 0（收縮回內）
       st.radius = minR + (maxR-minR)*wave;
       st.minR = minR; st.maxR = maxR; st.cycleMs = cycleMs;
-      const dps = (6+st.level*2.5)*(p._dmgMult*(p.typeBonus[this.type]||1));
+      const dps = (6+st.level*10)*(p._dmgMult*(p.typeBonus[this.type]||1));
       for(const e of enemies){
         const d = dist(p,e);
         if(d < st.radius){
