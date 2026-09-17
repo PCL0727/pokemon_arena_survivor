@@ -877,7 +877,7 @@ const CHAR_DEFS = {
 const BOSS_ORDER = ['onix','starmie','raichu','vileplume','weezing','alakazam','arcanine','nidoking','dragonite','mewtwo'];
 const BOSS_DEFS = {
   onix:{
-    name:'大岩蛇', r:60, hp:1500, speed:0.8, dmg:150, xpVal:500, color:'#9aa0a8',
+    name:'大岩蛇', r:60, hp:1000, speed:0.8, dmg:150, xpVal:500, color:'#9aa0a8',
     flavor:'地裂衝擊：蓄力後在自身周圍造成範圍重擊，蓄力時遠離即可閃避',
     initState:()=>({cooldown:2200, telegraph:0, slamRadius:200}),
     update(dt, boss, st){
