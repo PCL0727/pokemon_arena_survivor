@@ -1218,7 +1218,7 @@ const BOSS_DEFS = {
     }
   },
   starmie:{
-    name:'寶石海星', r:40, hp:2000, speed:1.9, dmg:150, xpVal:1000, color:'#8f9bdc',
+    name:'寶石海星', r:40, hp:4000, speed:1.9, dmg:150, xpVal:1000, color:'#8f9bdc',
     flavor:'蛇行泡泡砲＋直線泡泡：與玩家保持距離遊走，同時射出一發蜿蜒前進的大泡泡與一發直線飛向玩家的泡泡，冷卻皆為3秒',
     keepDist:300, retreatDist:100, orbit:true, // 與玩家保持距離遊走，不會停在原地不動
     initState:()=>({cooldown:3000, cooldown2:3000}),
@@ -1349,7 +1349,7 @@ const BOSS_DEFS = {
   },
   weezing:{
     name:'雙彈瓦斯', r:46, hp:20000, speed:1.3, dmg:55, xpVal:3000, color:'#b98fd6',
-    flavor:'雙重瓦斯彈：在雙彈瓦斯身邊隨機丟出兩團毒霧，毒霧持續10秒，站在裡面會中毒並持續扣血；毒霧不會阻擋移動，玩家靠近時可直接穿越逃到另一邊。汙泥炸彈：每5秒朝玩家所在位置丟一團範圍200的汙泥，傷害50，命中後視野會被糊住，越靠近角色越清楚、越遠越昏暗模糊，持續2秒',
+    flavor:'雙重瓦斯彈：在雙彈瓦斯身邊隨機丟出兩團毒霧，毒霧持續10秒，站在裡面會中毒（每秒扣10%最大生命，不受護盾與堅硬皮膚影響），離開毒霧後中毒還會殘留一小段時間才消退；毒霧不會阻擋移動，玩家靠近時可直接穿越逃到另一邊。汙泥炸彈：每5秒朝玩家所在位置丟一團範圍200的汙泥，傷害50（對中毒中的玩家造成2倍傷害，即100），命中後視野會被糊住，越靠近角色越清楚、越遠越昏暗模糊，持續2秒',
     keepDist:320, retreatDist:180, orbit:true, // 與玩家維持距離遊走，不會貼身
     initState:()=>({cooldown:2200, clouds:[], sludgeCooldown:4300, sludgeTelegraph:0, sludgeX:0, sludgeY:0}),
     update(dt, boss, st){
@@ -1387,7 +1387,8 @@ const BOSS_DEFS = {
         st.sludgeTelegraph -= dt;
         if(st.sludgeTelegraph <= 0){
           if(dist({x:st.sludgeX,y:st.sludgeY}, player) < 200){
-            damagePlayer(50, boss.name);
+            const sludgeDmg = player.poisonTimer > 0 ? 50*2 : 50; // 對中毒中的玩家造成2倍傷害
+            damagePlayer(sludgeDmg, boss.name);
             player.invuln = 300;
             player.visionTimer = 2000;
           }
@@ -1496,7 +1497,7 @@ const BOSS_DEFS = {
   arcanine:{
     name:'風速狗', r:44, hp:35000, speed:2.0, dmg:300, xpVal:4000, color:'#e8935a',
     keepDist:Infinity, retreatDist:0, // 預設不會主動移動；準備衝刺時才會靠近玩家
-    flavor:'火焰衝鋒：平時不會主動接近玩家，招式CD好了之後才會靠近；抵達距玩家300距離處便朝玩家方向衝刺600距離，撞上玩家造成300傷害，並沿路留下寬72px的火焰，碰到每秒造成玩家最大HP 5%的傷害，CD 2秒',
+    flavor:'火焰衝鋒：平時不會主動接近玩家，招式CD好了之後才會靠近；抵達距玩家300距離處便朝玩家方向衝刺600距離，撞上玩家造成300傷害，並沿路留下寬72px的火焰，碰到會進入燃燒狀態，每秒造成玩家最大HP 5%的傷害（不受護盾與堅硬皮膚影響），燃燒期間玩家攻擊力減半，CD 2秒',
     initState:()=>({phase:'idle', cooldown:2000, telegraphTime:0, dashDirX:0, dashDirY:0, dashTraveled:0, dashTotal:600, dashSpeed:26, dashHasHit:false, trails:[]}),
     update(dt, boss, st){
       // 持續中的火焰路徑：踩到會進入「燃燒」狀態，離開火焰後燃燒仍會持續一小段時間才消退
@@ -1588,7 +1589,7 @@ const BOSS_DEFS = {
   },
   nidoking:{
     name:'尼多王', r:56, hp:50000, speed:1.1, dmg:400, xpVal:4500, color:'#8a5fc9',
-    flavor:'超級地震：長時間蓄力後於自身周圍造成大範圍重擊，範圍比大岩蛇更廣更痛；反彈裝甲：每次受到玩家攻擊傷害，會反彈5%傷害給玩家',
+    flavor:'超級地震：長時間蓄力後於自身周圍造成大範圍重擊，範圍比大岩蛇更廣更痛；反彈裝甲：每次受到玩家攻擊傷害，會反彈5%傷害給玩家；劇毒反擊：玩家每次攻擊尼多王都會反過來讓自己中毒（重置為2秒、不疊加），每秒扣10%最大生命（不受護盾與堅硬皮膚影響）',
     initState:()=>({cooldown:2600, telegraph:0, slamRadius:250}),
     update(dt, boss, st){
       if(st.telegraph > 0){
@@ -1711,11 +1712,12 @@ const BOSS_DEFS = {
     }
   },
   mewtwo:{
-    name:'超夢', r:56, hp:20000, speed:0.6, dmg:500, xpVal:99999, color:'#b78cff',
-    flavor:'精神擊破：蓄力後朝玩家所在位置發射一顆發光的紫色旋轉球，命中時造成大範圍衝擊傷害（傷害會隨遊戲時間拉長持續增加）；近身念力震波：玩家靠太近時會先蓄力警示，短暫延遲後才震退拉開距離；戲法空間：週期性扭曲周遭650範圍的空間，地板顏色會隨之改變，範圍內移動速度越快的玩家減速幅度越大；超夢每秒會緩慢回復生命；永不落敗的最終試煉——看看你能撐多久、對牠造成多少傷害',
+    name:'超夢', r:56, hp:200000, speed:0.6, dmg:500, xpVal:99999, color:'#b78cff',
+    flavor:'精神屏障：登場時擁有50%減傷，隨著累計受到的傷害增加而逐漸減弱，累計吃滿最大HP的50%傷害後減傷歸零；精神擊破：蓄力後朝玩家所在位置發射一顆發光的紫色旋轉球，命中時造成大範圍衝擊傷害（傷害會隨遊戲時間拉長持續增加）；近身念力震波：玩家靠太近時會先蓄力警示，短暫延遲後才震退拉開距離；戲法空間：週期性扭曲周遭650範圍的空間，地板顏色會隨之改變，範圍內移動速度越快的玩家減速幅度越大；超夢每秒會緩慢回復生命；永不落敗的最終試煉——看看你能撐多久、對牠造成多少傷害',
     keepDist:300, retreatDist:250, // 隨時與玩家保持約300距離
     initState:()=>({cooldown:1200, orbs:[], meleeCooldown:0, meleeTelegraph:0, orbTelegraph:0,
-      trickRoomCooldown:6000, trickRoomActive:false, trickRoomTimer:0}), // 戲法空間：初始有6秒緩衝，之後啟動15秒/冷卻5秒循環
+      trickRoomCooldown:6000, trickRoomActive:false, trickRoomTimer:0,
+      cumDamageTaken:0}), // 戲法空間：初始有6秒緩衝，之後啟動15秒/冷卻5秒循環；cumDamageTaken：累計受到的實際傷害，用來計算精神屏障減傷的衰減進度
     update(dt, boss, st){
       // 近身念力震波：玩家靠太近時先蓄力警示一小段時間，讓玩家能看到動畫並反應，蓄力結束才造成傷害並慢慢把玩家推遠
       st.meleeCooldown -= dt;
@@ -1777,9 +1779,10 @@ const BOSS_DEFS = {
       if(st.trickRoomActive){
         st.trickRoomTimer -= dt;
         if(dist(boss,player) <= 650){
-          // 以角色移動速度做為減速依據：速度落在 2.0~6.0 區間內線性換算成 0%~50% 減速
-          const spdMin = 2.0, spdMax = 6.0;
-          const ratio = Math.min(1, Math.max(0, (player.speed - spdMin) / (spdMax - spdMin)));
+          // 以角色移動速度做為減速依據：速度落在 1.5~4.5 區間內線性換算成 20%~50% 減速（原本區間上限6.0太高，
+          // 一般角色速度很難達到，導致減速幅度小到幾乎感覺不到效果；下修區間並保底20%，讓效果一定能感受到）
+          const spdMin = 1.5, spdMax = 4.5;
+          const ratio = Math.min(1, Math.max(0.4, (player.speed - spdMin) / (spdMax - spdMin)));
           player._speedMult = 1 - ratio*0.5;
         } else {
           player._speedMult = 1;
@@ -1977,7 +1980,7 @@ let animId = null;
 let auraPulse = 0;
 let defeatedBossesThisRun = new Set(); // 本局曾打倒過的頭目 bossKey 集合，遊戲結束時結算成就
 let minionKillCountThisRun = 0; // 本局打倒的小怪（非頭目）數量，遊戲結束時累加進總計成就
-let finalStageBossKillCountThisRun = {fire:0, water:0, grass:0}; // 本局以「最終進化形態」打倒的頭目數量（依角色分類），遊戲結束時累加進總計成就
+let finalStageBossKillCountThisRun = {fire:new Set(), water:new Set(), grass:new Set()}; // 本局以「最終進化形態」打倒的「不重複」頭目種類（依角色分類，用Set避免同一頭目重複計算），遊戲結束時併入總計成就
 
 // 統一管理暫停狀態：暫停面板／升級面板／進化面板／頭目資訊面板，只要任一個還顯示中，遊戲就必須維持暫停，
 // 避免「關掉某個面板後，其他面板還開著，但背景遊戲卻繼續跑」的問題。
@@ -2060,7 +2063,7 @@ function resetGameState(charKey){
   lastHitBy = null;
   defeatedBossesThisRun = new Set();
   minionKillCountThisRun = 0;
-  finalStageBossKillCountThisRun = {fire:0, water:0, grass:0};
+  finalStageBossKillCountThisRun = {fire:new Set(), water:new Set(), grass:new Set()};
   gameWon = false;
   level100ReachedAt = null;
   spawnTimer = 0; spawnInterval = 1400;
@@ -2324,7 +2327,15 @@ function spawnChest(){
 // ---------- 攻擊 ----------
 function damageEnemy(e, amount, moveType){
   if(e.isBoss && e.bossKey === 'mewtwo'){
-    mewtwoDamageDealt += amount; // 記錄玩家對超夢造成的總傷害
+    mewtwoDamageDealt += amount; // 記錄玩家對超夢造成的總傷害（未扣除精神屏障減傷前的原始傷害）
+    // 精神屏障：登場時50%減傷，隨累計受到的實際傷害增加而線性減弱，
+    // 累計吃滿「最大HP的50%」傷害後，減傷降為0（之後恢復成正常吃全額傷害）
+    const st = e.bossState;
+    if(st.cumDamageTaken === undefined) st.cumDamageTaken = 0;
+    const reduceCap = e.maxHp * 0.5;
+    const curReduction = reduceCap > 0 ? Math.max(0, 0.5 * (1 - st.cumDamageTaken/reduceCap)) : 0;
+    amount *= (1 - curReduction);
+    st.cumDamageTaken += amount; // 以實際造成的傷害（已扣減傷後）累計，做為下次計算的依據
   }
   if(e.isBoss && e.bossKey === 'nidoking'){
     // 玩家對尼多王造成傷害後會中毒：時間重置為2秒（不疊加），每秒扣10%最大生命
@@ -2387,7 +2398,7 @@ function killEnemy(e){
   if(e.isBoss){
     defeatedBossesThisRun.add(e.bossKey);
     if(player.stageIndex === 2 && finalStageBossKillCountThisRun[player.charKey] !== undefined){
-      finalStageBossKillCountThisRun[player.charKey]++; // 以最終進化形態（噴火龍/水箭龜/妙蛙花）打倒頭目，計入對應成就
+      finalStageBossKillCountThisRun[player.charKey].add(e.bossKey); // 以最終進化形態（噴火龍/水箭龜/妙蛙花）打倒頭目，記錄「不重複」的頭目種類，計入對應成就
     }
   }else{
     minionKillCountThisRun++;
@@ -2471,23 +2482,35 @@ const FINAL_STAGE_BOSS_KILL_LABELS = {fire:'噴火龍', water:'水箭龜', grass
 const FINAL_STAGE_KILL_TOTAL_KEY = 'arenaSurvivor_finalStageBossKillTotal_v1';
 const FINAL_STAGE_KILL_ACHV_KEY = 'arenaSurvivor_finalStageBossKillAchievements_v1';
 
+// 累計進度改以「已打倒過的不重複頭目種類集合」儲存（而非單純累加擊殺次數），
+// 避免重複打倒同一頭目就能無限刷成就，必須集滿全部10種頭目才會達標
 function loadFinalStageBossKillTotals(){
-  const base = {fire:0, water:0, grass:0};
+  const base = {fire:new Set(), water:new Set(), grass:new Set()};
   try{
     const raw = localStorage.getItem(FINAL_STAGE_KILL_TOTAL_KEY);
     if(!raw) return base;
     const obj = JSON.parse(raw);
     if(obj && typeof obj === 'object'){
       FINAL_STAGE_BOSS_KILL_CHARS.forEach(k=>{
-        const v = parseInt(obj[k],10);
-        base[k] = (Number.isFinite(v) && v>0) ? Math.min(FINAL_STAGE_BOSS_KILL_TARGET, v) : 0;
+        const val = obj[k];
+        if(Array.isArray(val)){
+          // 新格式：不重複頭目 bossKey 陣列
+          base[k] = new Set(val.filter(bossKey=>BOSS_DEFS[bossKey]));
+        } else {
+          // 舊格式（純數字累計次數）：無法回推是哪些頭目，直接歸零重新累計，避免沿用舊制的重複計算漏洞
+          base[k] = new Set();
+        }
       });
     }
     return base;
   }catch(err){ return base; }
 }
 function saveFinalStageBossKillTotals(){
-  try{ localStorage.setItem(FINAL_STAGE_KILL_TOTAL_KEY, JSON.stringify(finalStageBossKillTotals)); }
+  try{
+    const serial = {};
+    FINAL_STAGE_BOSS_KILL_CHARS.forEach(k=>{ serial[k] = Array.from(finalStageBossKillTotals[k]); });
+    localStorage.setItem(FINAL_STAGE_KILL_TOTAL_KEY, JSON.stringify(serial));
+  }
   catch(err){ /* 保存失敗也不影響遊戲繼續 */ }
 }
 function loadFinalStageBossKillAchievements(){
@@ -2502,7 +2525,7 @@ function saveFinalStageBossKillAchievements(){
   try{ localStorage.setItem(FINAL_STAGE_KILL_ACHV_KEY, JSON.stringify(unlockedFinalStageBossKillAchievements)); }
   catch(err){ /* 保存失敗也不影響遊戲繼續 */ }
 }
-let finalStageBossKillTotals = loadFinalStageBossKillTotals(); // {fire, water, grass}：累計以該最終進化形態打倒的頭目數（上限10）
+let finalStageBossKillTotals = loadFinalStageBossKillTotals(); // {fire, water, grass}：以該最終進化形態打倒過的「不重複」頭目種類集合（Set，最多10種）
 let unlockedFinalStageBossKillAchievements = loadFinalStageBossKillAchievements(); // { fire: 解鎖時間戳, water: ..., grass: ... }
 
 // 每局遊戲結束（倒下或通關）後結算成就：
@@ -2541,12 +2564,15 @@ function settleAchievements(){
 
   let finalStageTotalsChanged = false;
   FINAL_STAGE_BOSS_KILL_CHARS.forEach(charKey=>{
-    const gained = finalStageBossKillCountThisRun[charKey]||0;
-    if(gained>0 && finalStageBossKillTotals[charKey] < FINAL_STAGE_BOSS_KILL_TARGET){
-      finalStageBossKillTotals[charKey] = Math.min(FINAL_STAGE_BOSS_KILL_TARGET, finalStageBossKillTotals[charKey]+gained);
-      finalStageTotalsChanged = true;
+    const gainedSet = finalStageBossKillCountThisRun[charKey];
+    const totalSet = finalStageBossKillTotals[charKey];
+    if(gainedSet && gainedSet.size>0 && totalSet.size < FINAL_STAGE_BOSS_KILL_TARGET){
+      // 只併入「尚未打倒過」的頭目種類，同一頭目重複打倒不會讓進度繼續累加
+      gainedSet.forEach(bossKey=>{
+        if(!totalSet.has(bossKey)){ totalSet.add(bossKey); finalStageTotalsChanged = true; }
+      });
     }
-    if(finalStageBossKillTotals[charKey] >= FINAL_STAGE_BOSS_KILL_TARGET && !unlockedFinalStageBossKillAchievements[charKey]){
+    if(totalSet.size >= FINAL_STAGE_BOSS_KILL_TARGET && !unlockedFinalStageBossKillAchievements[charKey]){
       unlockedFinalStageBossKillAchievements[charKey] = Date.now();
       saveFinalStageBossKillAchievements();
       toastQueue.push({type:'finalStage', charKey});
@@ -2699,7 +2725,7 @@ function renderAchvScreen(){
   FINAL_STAGE_BOSS_KILL_CHARS.forEach(charKey=>{
     const label = FINAL_STAGE_BOSS_KILL_LABELS[charKey];
     const unlockedAt = unlockedFinalStageBossKillAchievements[charKey];
-    const progress = finalStageBossKillTotals[charKey]||0;
+    const progress = finalStageBossKillTotals[charKey] ? finalStageBossKillTotals[charKey].size : 0;
     const item = document.createElement('div');
     item.className = 'achvItem ' + (unlockedAt ? 'unlocked' : 'locked');
     item.innerHTML = `
