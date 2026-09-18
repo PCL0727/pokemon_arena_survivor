@@ -205,7 +205,7 @@
   #achvProgress{color:var(--dim);font-size:28px;margin-bottom:16px;}
   .achvSectionTitle{margin:0 0 10px;font-size:30px;color:var(--gold);text-align:left;border-left:3px solid var(--gold);padding-left:8px;}
   .achvKillTotal{font-size:26px;color:var(--dim);margin-bottom:10px;text-align:left;}
-  #achvList, #achvKillList{
+  #achvList, #achvKillList, #achvSpecialList{
     display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));
     gap:12px;margin-bottom:22px;
   }
@@ -528,6 +528,8 @@
       <h3 class="achvSectionTitle">小怪擊殺成就</h3>
       <div id="achvKillTotal" class="achvKillTotal"></div>
       <div id="achvKillList"></div>
+      <h3 class="achvSectionTitle">特殊成就</h3>
+      <div id="achvSpecialList"></div>
       <button id="btnAchvBack">返回</button>
     </div>
   </div>
@@ -994,11 +996,17 @@ const SPECIAL_DEFS = {
         }
       }
     }
+  },
+  leapUp:{
+    name:'躍起', flavor:'鯉魚王的招牌技能，但是完全沒有任何作用',
+    desc:(lvl)=>`鯉魚王的招牌技能，但是完全沒有任何作用（Lv.${lvl}）`,
+    estimateDps(){ return 0; },
+    update(dt,p,st){ /* 躍起：完全沒有任何作用 */ }
   }
 };
 
 // 通用技能：不屬於任何角色的進化線，透過升級卡池機率習得
-const UNIVERSAL_SPECIAL_IDS = ['highSpeedStar', 'guard', 'lightWall'];
+const UNIVERSAL_SPECIAL_IDS = ['highSpeedStar', 'guard', 'lightWall', 'leapUp'];
 
 // ---------- 角色 + 三階段進化線 ----------
 const CHAR_DEFS = {
@@ -1047,7 +1055,7 @@ const CHAR_DEFS = {
 const BOSS_ORDER = ['onix','starmie','raichu','vileplume','weezing','alakazam','arcanine','nidoking','dragonite','mewtwo'];
 const BOSS_DEFS = {
   onix:{
-    name:'大岩蛇', r:60, hp:1000, speed:0.8, dmg:150, xpVal:500, color:'#9aa0a8',
+    name:'大岩蛇', r:60, hp:1500, speed:0.8, dmg:150, xpVal:500, color:'#9aa0a8',
     flavor:'地裂衝擊：蓄力後在自身周圍造成範圍重擊，蓄力時遠離即可閃避',
     initState:()=>({cooldown:2200, telegraph:0, slamRadius:200}),
     update(dt, boss, st){
@@ -1295,7 +1303,7 @@ const BOSS_DEFS = {
   alakazam:{
     name:'胡地', r:38, hp:30000, speed:2.0, dmg:200, xpVal:3500, color:'#e8d24a',
     keepDist:Infinity, retreatDist:220, // 不會主動靠近玩家，玩家靠近時會遠離
-    flavor:'不會主動靠近玩家，玩家靠近時會遠離；受到傷害時隨機瞬移到地圖另一處（CD 10秒）；精神強念：不論距離遠近，持續召喚漩渦狀球體追蹤玩家直到命中，命中後需冷卻4秒才會發射下一顆',
+    flavor:'不會主動靠近玩家，玩家靠近時會遠離；受到傷害時隨機瞬移到地圖另一處（CD 20秒）；精神強念：不論距離遠近，持續召喚漩渦狀球體追蹤玩家直到命中，命中後需冷卻4秒才會發射下一顆',
     initState:()=>({teleportCooldown:0, orbCooldown:2000, orb:null}),
     update(dt, boss, st){
       if(st.teleportCooldown > 0) st.teleportCooldown -= dt;
@@ -1445,7 +1453,7 @@ const BOSS_DEFS = {
     }
   },
   nidoking:{
-    name:'尼多王', r:56, hp:40000, speed:1.1, dmg:200, xpVal:4500, color:'#8a5fc9',
+    name:'尼多王', r:56, hp:50000, speed:1.1, dmg:400, xpVal:4500, color:'#8a5fc9',
     flavor:'超級地震：長時間蓄力後於自身周圍造成大範圍重擊，範圍比大岩蛇更廣更痛',
     initState:()=>({cooldown:2600, telegraph:0, slamRadius:250}),
     update(dt, boss, st){
@@ -1474,7 +1482,7 @@ const BOSS_DEFS = {
     }
   },
   dragonite:{
-    name:'快龍', r:60, hp:50000, speed:1.4, dmg:200, xpVal:5000, color:'#e0a94c',
+    name:'快龍', r:60, hp:70000, speed:1.4, dmg:300, xpVal:5000, color:'#e0a94c',
     flavor:'流星群：在玩家所在位置召喚一圈流星瞬間砸落，範圍內持續造成傷害',
     keepDist:400, retreatDist:0, // 靠近玩家至400距離就停下，不會主動遠離，玩家拉開距離時會追上來
     initState:()=>({cooldown:1200, zones:[]}),
@@ -1569,7 +1577,7 @@ const BOSS_DEFS = {
     }
   },
   mewtwo:{
-    name:'超夢', r:56, hp:999999, speed:0.6, dmg:500, xpVal:99999, color:'#b78cff',
+    name:'超夢', r:56, hp:10000, speed:0.6, dmg:500, xpVal:99999, color:'#b78cff',
     flavor:'精神擊破：蓄力後朝玩家所在位置發射一顆發光的紫色旋轉球，命中時造成大範圍衝擊傷害（傷害會隨遊戲時間拉長持續增加）；近身念力震波：玩家靠太近時會先蓄力警示，短暫延遲後才震退拉開距離；永不落敗的最終試煉——看看你能撐多久、對牠造成多少傷害',
     keepDist:300, retreatDist:250, // 隨時與玩家保持約300距離
     initState:()=>({cooldown:1200, orbs:[], meleeCooldown:0, meleeTelegraph:0, orbTelegraph:0}),
@@ -1791,6 +1799,7 @@ let animId = null;
 let auraPulse = 0;
 let defeatedBossesThisRun = new Set(); // 本局曾打倒過的頭目 bossKey 集合，遊戲結束時結算成就
 let minionKillCountThisRun = 0; // 本局打倒的小怪（非頭目）數量，遊戲結束時累加進總計成就
+let finalStageBossKillCountThisRun = {fire:0, water:0, grass:0}; // 本局以「最終進化形態」打倒的頭目數量（依角色分類），遊戲結束時累加進總計成就
 
 // 統一管理暫停狀態：暫停面板／升級面板／進化面板／頭目資訊面板，只要任一個還顯示中，遊戲就必須維持暫停，
 // 避免「關掉某個面板後，其他面板還開著，但背景遊戲卻繼續跑」的問題。
@@ -1812,6 +1821,24 @@ function shuffle(arr){
     [arr[i],arr[j]]=[arr[j],arr[i]];
   }
   return arr;
+}
+
+// 依權重（weight，預設1）不重複抽出 count 個項目；權重越低出現機率越小（躍起尚未習得時用此讓它只有一半機率出現）
+function weightedPickWithoutReplacement(items, count){
+  const pool = items.slice();
+  const result = [];
+  while(pool.length>0 && result.length<count){
+    const totalWeight = pool.reduce((sum,it)=> sum+(it.weight||1), 0);
+    let r = Math.random()*totalWeight;
+    let idx = 0;
+    for(; idx<pool.length-1; idx++){
+      r -= (pool[idx].weight||1);
+      if(r <= 0) break;
+    }
+    result.push(pool[idx]);
+    pool.splice(idx,1);
+  }
+  return result;
 }
 
 function resetGameState(charKey){
@@ -1854,6 +1881,7 @@ function resetGameState(charKey){
   lastHitBy = null;
   defeatedBossesThisRun = new Set();
   minionKillCountThisRun = 0;
+  finalStageBossKillCountThisRun = {fire:0, water:0, grass:0};
   gameWon = false;
   level100ReachedAt = null;
   spawnTimer = 0; spawnInterval = 1400;
@@ -2127,7 +2155,7 @@ function damageEnemy(e, amount){
   if(e.isBoss && e.bossKey === 'alakazam'){
     const st = e.bossState;
     if(st.teleportCooldown <= 0){
-      st.teleportCooldown = 10000; // CD 10秒
+      st.teleportCooldown = 20000; // CD 20秒
       const ang = Math.random()*Math.PI*2;
       const rad = Math.random()*(ARENA_R-60);
       e.x = CENTER.x + Math.cos(ang)*rad;
@@ -2171,6 +2199,9 @@ function killEnemy(e){
   }
   if(e.isBoss){
     defeatedBossesThisRun.add(e.bossKey);
+    if(player.stageIndex === 2 && finalStageBossKillCountThisRun[player.charKey] !== undefined){
+      finalStageBossKillCountThisRun[player.charKey]++; // 以最終進化形態（噴火龍/水箭龜/妙蛙花）打倒頭目，計入對應成就
+    }
   }else{
     minionKillCountThisRun++;
   }
@@ -2229,6 +2260,63 @@ function saveMinionKillAchievements(){
 let totalMinionKills = loadMinionKillTotal(); // 累計打倒小怪數量（超過 MINION_KILL_CAP 後不再增加）
 let unlockedMinionKillAchievements = loadMinionKillAchievements(); // { "50": 解鎖時間戳, "100": ..., ... }
 
+// ---------- 特殊成就：躍起 達到 Lv.10（自動保存於 localStorage） ----------
+const LEAP_ACHV_KEY = 'arenaSurvivor_leapAchievement_v1';
+function loadLeapAchievement(){
+  try{
+    const raw = localStorage.getItem(LEAP_ACHV_KEY);
+    if(!raw) return null;
+    const obj = JSON.parse(raw);
+    return (obj && obj.unlockedAt) ? obj.unlockedAt : null;
+  }catch(err){ return null; }
+}
+function saveLeapAchievement(){
+  try{ localStorage.setItem(LEAP_ACHV_KEY, JSON.stringify({unlockedAt: leapAchievementUnlockedAt})); }
+  catch(err){ /* 保存失敗也不影響遊戲繼續 */ }
+}
+let leapAchievementUnlockedAt = loadLeapAchievement(); // null 或解鎖時間戳
+
+// ---------- 最終進化形態頭目擊殺成就：以噴火龍／水箭龜／妙蛙花 打倒10個頭目（第1世代，自動保存於 localStorage） ----------
+const FINAL_STAGE_BOSS_KILL_TARGET = 10;
+const FINAL_STAGE_BOSS_KILL_CHARS = ['fire','water','grass'];
+const FINAL_STAGE_BOSS_KILL_LABELS = {fire:'噴火龍', water:'水箭龜', grass:'妙蛙花'};
+const FINAL_STAGE_KILL_TOTAL_KEY = 'arenaSurvivor_finalStageBossKillTotal_v1';
+const FINAL_STAGE_KILL_ACHV_KEY = 'arenaSurvivor_finalStageBossKillAchievements_v1';
+
+function loadFinalStageBossKillTotals(){
+  const base = {fire:0, water:0, grass:0};
+  try{
+    const raw = localStorage.getItem(FINAL_STAGE_KILL_TOTAL_KEY);
+    if(!raw) return base;
+    const obj = JSON.parse(raw);
+    if(obj && typeof obj === 'object'){
+      FINAL_STAGE_BOSS_KILL_CHARS.forEach(k=>{
+        const v = parseInt(obj[k],10);
+        base[k] = (Number.isFinite(v) && v>0) ? Math.min(FINAL_STAGE_BOSS_KILL_TARGET, v) : 0;
+      });
+    }
+    return base;
+  }catch(err){ return base; }
+}
+function saveFinalStageBossKillTotals(){
+  try{ localStorage.setItem(FINAL_STAGE_KILL_TOTAL_KEY, JSON.stringify(finalStageBossKillTotals)); }
+  catch(err){ /* 保存失敗也不影響遊戲繼續 */ }
+}
+function loadFinalStageBossKillAchievements(){
+  try{
+    const raw = localStorage.getItem(FINAL_STAGE_KILL_ACHV_KEY);
+    if(!raw) return {};
+    const obj = JSON.parse(raw);
+    return (obj && typeof obj === 'object') ? obj : {};
+  }catch(err){ return {}; }
+}
+function saveFinalStageBossKillAchievements(){
+  try{ localStorage.setItem(FINAL_STAGE_KILL_ACHV_KEY, JSON.stringify(unlockedFinalStageBossKillAchievements)); }
+  catch(err){ /* 保存失敗也不影響遊戲繼續 */ }
+}
+let finalStageBossKillTotals = loadFinalStageBossKillTotals(); // {fire, water, grass}：累計以該最終進化形態打倒的頭目數（上限10）
+let unlockedFinalStageBossKillAchievements = loadFinalStageBossKillAchievements(); // { fire: 解鎖時間戳, water: ..., grass: ... }
+
 // 每局遊戲結束（倒下或通關）後結算成就：
 // 1) 本局曾打倒過的頭目，若尚未解鎖則解鎖
 // 2) 本局打倒的小怪數量併入累計總數（超過 2000 後不再增加），並依序檢查是否跨過新的門檻
@@ -2257,6 +2345,27 @@ function settleAchievements(){
   });
   if(newlyUnlockedTier) saveMinionKillAchievements();
 
+  if(!leapAchievementUnlockedAt && player.specialsState.leapUp && player.specialsState.leapUp.level >= SPECIAL_MAX_LEVEL){
+    leapAchievementUnlockedAt = Date.now();
+    saveLeapAchievement();
+    toastQueue.push({type:'leap'});
+  }
+
+  let finalStageTotalsChanged = false;
+  FINAL_STAGE_BOSS_KILL_CHARS.forEach(charKey=>{
+    const gained = finalStageBossKillCountThisRun[charKey]||0;
+    if(gained>0 && finalStageBossKillTotals[charKey] < FINAL_STAGE_BOSS_KILL_TARGET){
+      finalStageBossKillTotals[charKey] = Math.min(FINAL_STAGE_BOSS_KILL_TARGET, finalStageBossKillTotals[charKey]+gained);
+      finalStageTotalsChanged = true;
+    }
+    if(finalStageBossKillTotals[charKey] >= FINAL_STAGE_BOSS_KILL_TARGET && !unlockedFinalStageBossKillAchievements[charKey]){
+      unlockedFinalStageBossKillAchievements[charKey] = Date.now();
+      saveFinalStageBossKillAchievements();
+      toastQueue.push({type:'finalStage', charKey});
+    }
+  });
+  if(finalStageTotalsChanged) saveFinalStageBossKillTotals();
+
   if(toastQueue.length) showAchievementToasts(toastQueue);
   updateAchvModeBtnProgress();
   updateAchvPointsModeBtn();
@@ -2278,9 +2387,18 @@ function showAchievementToasts(items){
         iconHtml = `<img src="${ENEMY_IMAGES[def.name]||''}" alt="${def.name}">`;
         titleHtml = `🏆 恭喜 打倒${def.name}`;
         nameHtml = `並解鎖成就！`;
-      }else{
+      }else if(item.type === 'kill'){
         iconHtml = `⚔️`;
         titleHtml = `🏆 恭喜 累計擊敗 ${item.threshold} 隻小怪`;
+        nameHtml = `並解鎖成就！`;
+      }else if(item.type === 'leap'){
+        iconHtml = `🐟`;
+        titleHtml = `🏆 恭喜 躍起 達到 Lv.${SPECIAL_MAX_LEVEL}`;
+        nameHtml = `並解鎖成就！`;
+      }else{
+        const label = FINAL_STAGE_BOSS_KILL_LABELS[item.charKey];
+        iconHtml = `<img src="${CHAR_IMAGES[label]||''}" alt="${label}">`;
+        titleHtml = `🏆 恭喜 以${label}打倒${FINAL_STAGE_BOSS_KILL_TARGET}個頭目`;
         nameHtml = `並解鎖成就！`;
       }
       const toast = document.createElement('div');
@@ -2302,8 +2420,10 @@ function updateAchvModeBtnProgress(){
   if(!el) return;
   const bossCount = ACHV_BOSS_ORDER.filter(k=>unlockedAchievements[k]).length;
   const killCountUnlocked = MINION_KILL_THRESHOLDS.filter(t=>unlockedMinionKillAchievements[t]).length;
-  const total = bossCount + killCountUnlocked;
-  const totalMax = ACHV_BOSS_ORDER.length + MINION_KILL_THRESHOLDS.length;
+  const leapCount = leapAchievementUnlockedAt ? 1 : 0;
+  const finalStageCount = FINAL_STAGE_BOSS_KILL_CHARS.filter(k=>unlockedFinalStageBossKillAchievements[k]).length;
+  const total = bossCount + killCountUnlocked + leapCount + finalStageCount;
+  const totalMax = ACHV_BOSS_ORDER.length + MINION_KILL_THRESHOLDS.length + 1 + FINAL_STAGE_BOSS_KILL_CHARS.length;
   el.textContent = `${total} / ${totalMax}`;
 }
 
@@ -2316,8 +2436,10 @@ function formatAchvDate(ts){
 function renderAchvScreen(){
   const bossCount = ACHV_BOSS_ORDER.filter(k=>unlockedAchievements[k]).length;
   const killCountUnlocked = MINION_KILL_THRESHOLDS.filter(t=>unlockedMinionKillAchievements[t]).length;
+  const leapCount = leapAchievementUnlockedAt ? 1 : 0;
+  const finalStageCount = FINAL_STAGE_BOSS_KILL_CHARS.filter(k=>unlockedFinalStageBossKillAchievements[k]).length;
   document.getElementById('achvProgress').textContent =
-    `頭目 ${bossCount} / ${ACHV_BOSS_ORDER.length}　・　小怪擊殺 ${killCountUnlocked} / ${MINION_KILL_THRESHOLDS.length}`;
+    `頭目 ${bossCount} / ${ACHV_BOSS_ORDER.length}　・　小怪擊殺 ${killCountUnlocked} / ${MINION_KILL_THRESHOLDS.length}　・　特殊 ${leapCount + finalStageCount} / ${1 + FINAL_STAGE_BOSS_KILL_CHARS.length}`;
 
   const list = document.getElementById('achvList');
   list.innerHTML = '';
@@ -2332,7 +2454,7 @@ function renderAchvScreen(){
         ${unlockedAt ? '' : '<div class="achvLockMark">🔒</div>'}
       </div>
       <div class="achvName">${unlockedAt ? '打倒'+def.name : '???'}</div>
-      <div class="achvDate">${unlockedAt ? formatAchvDate(unlockedAt) : '尚未解鎖'}</div>
+      <div class="achvDate">${unlockedAt ? formatAchvDate(unlockedAt) : `尚未解鎖（打倒${def.name}）`}</div>
     `;
     list.appendChild(item);
   });
@@ -2371,6 +2493,37 @@ function renderAchvScreen(){
     `;
   }
   killList.appendChild(killItem);
+
+  const specialList = document.getElementById('achvSpecialList');
+  specialList.innerHTML = '';
+  const leapItem = document.createElement('div');
+  leapItem.className = 'achvItem ' + (leapAchievementUnlockedAt ? 'unlocked' : 'locked');
+  leapItem.innerHTML = `
+    <div class="achvIcon">
+      <div style="font-size:26px;">🐟</div>
+      ${leapAchievementUnlockedAt ? '' : '<div class="achvLockMark">🔒</div>'}
+    </div>
+    <div class="achvName">${leapAchievementUnlockedAt ? `躍起 Lv.${SPECIAL_MAX_LEVEL}` : '???'}</div>
+    <div class="achvDate">${leapAchievementUnlockedAt ? formatAchvDate(leapAchievementUnlockedAt) : `尚未解鎖（躍起 Lv.${SPECIAL_MAX_LEVEL}）`}</div>
+  `;
+  specialList.appendChild(leapItem);
+
+  FINAL_STAGE_BOSS_KILL_CHARS.forEach(charKey=>{
+    const label = FINAL_STAGE_BOSS_KILL_LABELS[charKey];
+    const unlockedAt = unlockedFinalStageBossKillAchievements[charKey];
+    const progress = finalStageBossKillTotals[charKey]||0;
+    const item = document.createElement('div');
+    item.className = 'achvItem ' + (unlockedAt ? 'unlocked' : 'locked');
+    item.innerHTML = `
+      <div class="achvIcon">
+        <img src="${CHAR_IMAGES[label]||''}" alt="${label}">
+        ${unlockedAt ? '' : '<div class="achvLockMark">🔒</div>'}
+      </div>
+      <div class="achvName">${unlockedAt ? `${label}擊倒${FINAL_STAGE_BOSS_KILL_TARGET}頭目` : '???'}</div>
+      <div class="achvDate">${unlockedAt ? formatAchvDate(unlockedAt) : `尚未解鎖（以${label}打倒${FINAL_STAGE_BOSS_KILL_TARGET}個頭目）`}</div>
+    `;
+    specialList.appendChild(item);
+  });
 
   updateAchvModeBtnProgress();
 }
@@ -2411,11 +2564,13 @@ function saveAchvPointUpgrades(){
 }
 let achvPointUpgrades = loadAchvPointUpgrades(); // { hp:0~5, moveSpeed:0~5, dmgMult:0~5, ... }
 
-// 目前累積獲得的成就點數 = 已解鎖成就總數（10 個頭目成就 + 8 個小怪擊殺累計門檻）
+// 目前累積獲得的成就點數 = 已解鎖成就總數（10 個頭目成就 + 8 個小怪擊殺累計門檻 + 1 個躍起成就 + 3 個最終進化頭目擊殺成就）
 function totalAchievementsUnlockedCount(){
   const bossCnt = ACHV_BOSS_ORDER.filter(k=>unlockedAchievements[k]).length;
   const killCnt = MINION_KILL_THRESHOLDS.filter(t=>unlockedMinionKillAchievements[t]).length;
-  return bossCnt + killCnt;
+  const leapCnt = leapAchievementUnlockedAt ? 1 : 0;
+  const finalStageCnt = FINAL_STAGE_BOSS_KILL_CHARS.filter(k=>unlockedFinalStageBossKillAchievements[k]).length;
+  return bossCnt + killCnt + leapCnt + finalStageCnt;
 }
 function achvPointsSpent(){
   return ACHV_POINT_STAT_DEFS.reduce((sum,s)=> sum + (achvPointUpgrades[s.id]||0), 0);
@@ -2583,14 +2738,15 @@ function getUpgradeChoices(){
   }
   for(const id of UNIVERSAL_SPECIAL_IDS){
     if(!player.specialsState[id]){
+      // 躍起尚未習得過時，出現機率是其他技能的一半；已經學過一次後（之後只會以升級Lv.選項出現）機率就跟其他技能相同
+      const weight = (id === 'leapUp') ? 0.5 : 1;
       specialCandidates.push({
         title: SPECIAL_DEFS[id].name+'（習得）', desc: SPECIAL_DEFS[id].flavor,
-        special:true, apply:(p)=>{ p.specialsState[id] = {level:1}; }
+        special:true, weight, apply:(p)=>{ p.specialsState[id] = {level:1}; }
       });
     }
   }
-  shuffle(specialCandidates);
-  const chosen = specialCandidates.slice(0,2);
+  const chosen = weightedPickWithoutReplacement(specialCandidates, 2);
   const pool = UPGRADE_POOL.filter(u => (player.upgradePicks[u.id]||0) < UPGRADE_MAX_LEVEL);
   while(chosen.length < 3 && pool.length>0){
     const i = Math.floor(Math.random()*pool.length);
