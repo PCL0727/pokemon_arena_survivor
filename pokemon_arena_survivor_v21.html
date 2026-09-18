@@ -687,7 +687,7 @@ const SPECIAL_DEFS = {
   flameSpin:{
     type:'fire',
     name:'火焰旋風', flavor:'身周形成持續灼燒環，敵人靠近持續受傷；移動速度越快，灼燒傷害也越高',
-    desc:(lvl,speed)=>`灼燒半徑 ${55+lvl*14}px・每秒 ${Math.round(6+lvl*3+5*(speed||0))} 傷害`,
+    desc:(lvl,speed)=>`灼燒半徑 ${55+lvl*14}px・每秒 ${Math.round(6+lvl*3+5*(speed||0))} 傷害（移動速度越快，傷害越高）`,
     estimateDps(lvl,dmgMult,atkSpeed,speed){ return (6+lvl*3+5*(speed||0))*dmgMult*atkSpeed; },
     update(dt,p,st){
       const radius = 55+st.level*14;
@@ -698,7 +698,7 @@ const SPECIAL_DEFS = {
   flameCharge:{
     type:'fire',
     name:'烈焰衝鋒', flavor:'角色所到之處會留下燃燒的火焰圈，火焰持續3秒，站在火焰上的敵人會每秒持續受到傷害；移動速度越快，留下火焰圈的間隔也會越短（避免跑太快時地上出現空隙），火焰傷害也越高；火焰圈重疊時傷害不會疊加',
-    desc:(lvl,speed)=>`每 ${Math.max(0.12,(1.0-lvl*0.06)/(speed||1)).toFixed(2)}s 在角色所在位置留下一圈火焰（持續3秒，重疊不疊加）・地面火焰每秒傷害 ${Math.round(15+lvl*10+(speed||0)*10)}`,
+    desc:(lvl,speed)=>`每 ${Math.max(0.12,(1.0-lvl*0.06)/(speed||1)).toFixed(2)}s 在角色所在位置留下一圈火焰（持續3秒，重疊不疊加）・地面火焰每秒傷害 ${Math.round(15+lvl*10+(speed||0)*10)}（移動速度越快，傷害越高）`,
     estimateDps(lvl,dmgMult,atkSpeed,speed){
       // 地面火焰屬於持續灼燒效果，傷害同時受力量提升(dmgMult)、反應加速(atkSpeed)與移動速度影響
       return (15+lvl*10+(speed||0)*10)*dmgMult*atkSpeed;
@@ -737,7 +737,7 @@ const SPECIAL_DEFS = {
   flamethrower:{
     type:'fire',
     name:'噴射火焰', flavor:'持續朝最近敵人噴出直線火焰，距離300、範圍60px；移動速度越快，火焰傷害也越高',
-    desc:(lvl,speed)=>`每0.35s對距離300、範圍60px的直線範圍造成 ${Math.round(10+lvl*6+(speed||0)*10)} 傷害`,
+    desc:(lvl,speed)=>`每0.35s對距離300、範圍60px的直線範圍造成 ${Math.round(10+lvl*6+(speed||0)*10)} 傷害（移動速度越快，傷害越高）`,
     estimateDps(lvl,dmgMult,atkSpeed,speed){
       const cdSec = (350/atkSpeed)/1000;
       return (10+lvl*6+(speed||0)*10)*dmgMult/cdSec;
