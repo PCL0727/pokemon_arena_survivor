@@ -227,11 +227,6 @@
   .achvName{font-size:27px;font-weight:700;}
   .achvItem.locked .achvName{color:var(--dim);}
   .achvDate{font-size:21px;color:var(--dim);}
-  #btnAchvBack{
-    background:transparent;border:1px solid var(--line);color:var(--dim);
-    padding:9px 22px;border-radius:8px;cursor:pointer;pointer-events:all;
-  }
-  #btnAchvBack:hover{border-color:var(--gold);color:var(--text);}
 
   /* ---------- 成就點系統 ---------- */
   #achvPointScreen{
@@ -274,11 +269,6 @@
   }
   .achvBatteryCell{width:14px;height:20px;border-radius:2px;background:#1c222b;}
   .achvBatteryCell.filled{background:linear-gradient(180deg,#7ed2ff,#2f8fe0);box-shadow:0 0 5px #5ec8ffaa inset;}
-  #btnAchvPointBack{
-    background:transparent;border:1px solid var(--line);color:var(--dim);
-    padding:9px 22px;border-radius:8px;cursor:pointer;pointer-events:all;
-  }
-  #btnAchvPointBack:hover{border-color:var(--gold);color:var(--text);}
 
   /* ---------- 成就解鎖提示 ---------- */
   #achvToastWrap{
@@ -299,17 +289,15 @@
   .achvToast .achvToastName{font-size:15px;font-weight:700;white-space:nowrap;}
   @keyframes achvToastIn{from{opacity:0;transform:translateY(-18px) scale(.94);}to{opacity:1;transform:translateY(0) scale(1);}}
   @keyframes achvToastOut{to{opacity:0;transform:translateY(-18px) scale(.94);}}
-  #btnModeCancel{
-    background:transparent;border:1px solid var(--line);color:var(--dim);
-    padding:9px 22px;border-radius:8px;cursor:pointer;pointer-events:all;
+  #btnModeCancel, .backToModeBtn, #btnAchvBack, #btnAchvPointBack{
+    background:var(--gold);border:none;color:#1a1200;font-weight:700;
+    padding:10px 26px;border-radius:8px;cursor:pointer;pointer-events:all;
+    box-shadow:0 3px 10px #00000055;transition:filter .15s,transform .1s;
   }
-  .backToModeBtn{
-    align-self:center;margin-bottom:18px;
-    background:transparent;border:1px solid var(--line);color:var(--dim);
-    padding:8px 20px;border-radius:8px;cursor:pointer;pointer-events:all;font-size:15px;
-    transition:border-color .15s,color .15s;
+  #btnModeCancel:hover, .backToModeBtn:hover, #btnAchvBack:hover, #btnAchvPointBack:hover{
+    filter:brightness(1.1);transform:translateY(-1px);
   }
-  .backToModeBtn:hover{border-color:var(--gold);color:var(--text);}
+  .backToModeBtn{align-self:center;margin-bottom:18px;font-size:15px;}
 
   #levelup, #evolvePanel, #bossPanel{
     position:absolute;inset:0;background:#000000d9;display:none;
@@ -417,6 +405,31 @@
     margin-top:18px;background:var(--gold);color:#241a00;border:none;border-radius:8px;
     padding:12px 30px;font-weight:700;cursor:pointer;font-size:17px;pointer-events:all;
   }
+  #btnPauseGiveUp{
+    margin-top:12px;background:transparent;color:#ff7a7a;border:1px solid #ff7a7a88;border-radius:8px;
+    padding:11px 30px;font-weight:700;cursor:pointer;font-size:15px;pointer-events:all;
+  }
+  #btnPauseGiveUp:hover{background:#ff7a7a22;border-color:#ff7a7a;}
+
+  #giveUpConfirm{
+    position:absolute;inset:0;background:#000000e6;display:none;
+    align-items:center;justify-content:center;z-index:30;padding:20px;
+  }
+  #giveUpConfirmPanel{
+    background:var(--panel);border:2px solid #ff7a7a;border-radius:14px;
+    padding:24px 26px;max-width:360px;width:min(90vw,360px);text-align:center;pointer-events:all;
+  }
+  #giveUpConfirmPanel h3{margin:0 0 10px;color:#ff7a7a;font-size:20px;}
+  #giveUpConfirmPanel p{margin:0 0 20px;color:var(--dim);font-size:14px;line-height:1.6;}
+  .giveUpConfirmBtns{display:flex;gap:12px;justify-content:center;}
+  .giveUpConfirmBtns button{
+    flex:1;padding:11px 0;border-radius:8px;font-weight:700;cursor:pointer;
+    pointer-events:all;border:none;font-size:15px;
+  }
+  #btnGiveUpCancel{background:transparent;border:1px solid var(--line);color:var(--dim);}
+  #btnGiveUpCancel:hover{border-color:var(--text);color:var(--text);}
+  #btnGiveUpConfirm{background:#ff7a7a;color:#2a0a0a;}
+  #btnGiveUpConfirm:hover{filter:brightness(1.1);}
   #joyKnob{
     position:absolute;left:50%;top:50%;width:52px;height:52px;border-radius:50%;
     background:#ffffff33;border:2px solid #ffffffaa;
@@ -448,6 +461,18 @@
     <h2>目前狀態</h2>
     <div id="pauseStats"></div>
     <button id="btnPauseResume">繼續遊戲</button>
+    <button id="btnPauseGiveUp">放棄本局</button>
+  </div>
+
+  <div id="giveUpConfirm">
+    <div id="giveUpConfirmPanel">
+      <h3>放棄本局？</h3>
+      <p>放棄後這局遊戲會立即結束並結算成就，確定要放棄嗎？</p>
+      <div class="giveUpConfirmBtns">
+        <button id="btnGiveUpCancel">取消</button>
+        <button id="btnGiveUpConfirm">確認放棄</button>
+      </div>
+    </div>
   </div>
 
   <div id="joystick"><div id="joyKnob"></div></div>
@@ -3520,6 +3545,17 @@ function closePausePanel(){
 }
 document.getElementById('btnPause').onclick = openPausePanel;
 document.getElementById('btnPauseResume').onclick = closePausePanel;
+document.getElementById('btnPauseGiveUp').onclick = ()=>{
+  document.getElementById('giveUpConfirm').style.display = 'flex';
+};
+document.getElementById('btnGiveUpCancel').onclick = ()=>{
+  document.getElementById('giveUpConfirm').style.display = 'none';
+};
+document.getElementById('btnGiveUpConfirm').onclick = ()=>{
+  document.getElementById('giveUpConfirm').style.display = 'none';
+  document.getElementById('pausePanel').style.display = 'none';
+  giveUpGame();
+};
 
 // ---------- 遊戲流程 ----------
 let lastTime = 0;
@@ -3537,6 +3573,7 @@ function startGame(charKey){
   document.getElementById('charStatus').classList.remove('hidden');
   // 保險：重新開局時，確保暫停/升級/進化/頭目資訊面板都是關閉的，暫停狀態才會正確歸零
   document.getElementById('pausePanel').style.display = 'none';
+  document.getElementById('giveUpConfirm').style.display = 'none';
   document.getElementById('levelup').style.display = 'none';
   document.getElementById('evolvePanel').style.display = 'none';
   document.getElementById('bossPanel').style.display = 'none';
@@ -3562,6 +3599,28 @@ function endGame(){
     <h1>倒下了...</h1>
     <div class="sub">存活 ${document.getElementById('timeText').textContent}　｜　擊殺 ${killCount}　｜　等級 ${player.level}　｜　最終形態 ${player.def.stages[player.stageIndex].name}</div>
     ${killerLine}
+    ${mewtwoLine}
+    <button id="btnRestart">再挑戰一次</button>
+  `;
+  overlay.classList.remove('hidden');
+  document.getElementById('hud').classList.add('hidden');
+  document.getElementById('hint').classList.add('hidden');
+  document.getElementById('charStatus').classList.add('hidden');
+  updateFullscreenBtnVisibility();
+  document.getElementById('btnRestart').onclick = ()=>{ buildCharPicker(); };
+}
+
+function giveUpGame(){
+  running = false;
+  cancelAnimationFrame(animId);
+  settleAchievements();
+  const overlay = document.getElementById('overlay');
+  const mewtwoLine = bossSpawnedLevels.has(100)
+    ? `<div class="sub" style="color:var(--evo);">放棄前，對超夢造成了 <b>${Math.round(mewtwoDamageDealt)}</b> 點傷害</div>`
+    : '';
+  overlay.innerHTML = `
+    <h1>已放棄本局</h1>
+    <div class="sub">存活 ${document.getElementById('timeText').textContent}　｜　擊殺 ${killCount}　｜　等級 ${player.level}　｜　最終形態 ${player.def.stages[player.stageIndex].name}</div>
     ${mewtwoLine}
     <button id="btnRestart">再挑戰一次</button>
   `;
