@@ -1707,9 +1707,10 @@ const BOSS_DEFS = {
   },
   mewtwo:{
     name:'超夢', r:56, hp:20000, speed:0.6, dmg:500, xpVal:99999, color:'#b78cff',
-    flavor:'精神擊破：蓄力後朝玩家所在位置發射一顆發光的紫色旋轉球，命中時造成大範圍衝擊傷害（傷害會隨遊戲時間拉長持續增加）；近身念力震波：玩家靠太近時會先蓄力警示，短暫延遲後才震退拉開距離；永不落敗的最終試煉——看看你能撐多久、對牠造成多少傷害',
+    flavor:'精神擊破：蓄力後朝玩家所在位置發射一顆發光的紫色旋轉球，命中時造成大範圍衝擊傷害（傷害會隨遊戲時間拉長持續增加）；近身念力震波：玩家靠太近時會先蓄力警示，短暫延遲後才震退拉開距離；戲法空間：週期性扭曲周遭650範圍的空間，地板顏色會隨之改變，範圍內移動速度越快的玩家減速幅度越大；超夢每秒會緩慢回復生命；永不落敗的最終試煉——看看你能撐多久、對牠造成多少傷害',
     keepDist:300, retreatDist:250, // 隨時與玩家保持約300距離
-    initState:()=>({cooldown:1200, orbs:[], meleeCooldown:0, meleeTelegraph:0, orbTelegraph:0}),
+    initState:()=>({cooldown:1200, orbs:[], meleeCooldown:0, meleeTelegraph:0, orbTelegraph:0,
+      trickRoomCooldown:6000, trickRoomActive:false, trickRoomTimer:0}), // 戲法空間：初始有6秒緩衝，之後啟動15秒/冷卻5秒循環
     update(dt, boss, st){
       // 近身念力震波：玩家靠太近時先蓄力警示一小段時間，讓玩家能看到動畫並反應，蓄力結束才造成傷害並慢慢把玩家推遠
       st.meleeCooldown -= dt;
@@ -1736,7 +1737,7 @@ const BOSS_DEFS = {
           const ang = Math.atan2(player.y-boss.y, player.x-boss.x);
           // spawnGrace：球剛發射後的短暫保護時間，這段時間只會飛行不會判定爆炸，
           // 避免玩家離超夢很近時，球一生成就立刻在同一幀內爆炸、來不及顯示飛行動畫就造成傷害
-          st.orbs.push({x:boss.x, y:boss.y, tx:player.x, ty:player.y, vx:Math.cos(ang)*12, vy:Math.sin(ang)*12, spin:0, spawnGrace:150, trail:[]});
+          st.orbs.push({x:boss.x, y:boss.y, tx:player.x, ty:player.y, vx:Math.cos(ang)*6, vy:Math.sin(ang)*6, spin:0, spawnGrace:150, trail:[]});
           for(let i=0;i<10;i++) particles.push({type:'burst', x:boss.x, y:boss.y, vx:rand(-2,2),vy:rand(-2,2), life:14,maxLife:14, color:'#d8bfff'});
         }
       } else {
@@ -1766,8 +1767,51 @@ const BOSS_DEFS = {
           st.orbs.splice(i,1);
         }
       }
+
+      // 戲法空間：範圍650內地板變色，範圍內玩家速度越高、受到的減速越多（最多減少50%），持續15秒，冷卻5秒
+      if(st.trickRoomActive){
+        st.trickRoomTimer -= dt;
+        if(dist(boss,player) <= 650){
+          // 以角色移動速度做為減速依據：速度落在 2.0~6.0 區間內線性換算成 0%~50% 減速
+          const spdMin = 2.0, spdMax = 6.0;
+          const ratio = Math.min(1, Math.max(0, (player.speed - spdMin) / (spdMax - spdMin)));
+          player._speedMult = 1 - ratio*0.5;
+        } else {
+          player._speedMult = 1;
+        }
+        if(st.trickRoomTimer <= 0){
+          st.trickRoomActive = false;
+          player._speedMult = 1;
+          st.trickRoomCooldown = 5000;
+        }
+      } else {
+        st.trickRoomCooldown -= dt;
+        if(st.trickRoomCooldown <= 0){
+          st.trickRoomActive = true;
+          st.trickRoomTimer = 15000;
+        }
+      }
+
+      // 超夢每秒回復50生命
+      boss.hp = Math.min(boss.maxHp, boss.hp + 50*(dt/1000));
     },
     drawTelegraph(s, boss, st){
+      // 戲法空間啟動中：以超夢為中心，範圍650的地板顏色改變（柔和薄荷藍綠色，畫在最底層）
+      if(st.trickRoomActive){
+        const bs = worldToScreen(boss.x, boss.y);
+        ctx.save();
+        const twist = auraPulse*1.5;
+        const grad = ctx.createRadialGradient(bs.x,bs.y,0, bs.x,bs.y,650);
+        grad.addColorStop(0,'rgba(122,230,210,0.24)');
+        grad.addColorStop(0.55,'rgba(122,230,210,0.15)');
+        grad.addColorStop(1,'rgba(122,230,210,0)');
+        ctx.fillStyle = grad;
+        ctx.beginPath(); ctx.arc(bs.x,bs.y,650,0,Math.PI*2); ctx.fill();
+        ctx.globalAlpha = 0.45 + 0.1*Math.sin(twist);
+        ctx.strokeStyle = '#7ae6cd'; ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.arc(bs.x,bs.y,650,0,Math.PI*2); ctx.stroke();
+        ctx.restore();
+      }
       // 近身念力震波蓄力：以超夢為中心，脈動擴散的警示光環
       if(st.meleeTelegraph > 0){
         const bs = worldToScreen(boss.x, boss.y);
@@ -2344,6 +2388,7 @@ function killEnemy(e){
     minionKillCountThisRun++;
   }
   if(e.isBoss && e.bossKey === 'mewtwo'){
+    player._speedMult = 1; // 戲法空間效果不因超夢死亡而殘留
     showVictory();
   }
 }
