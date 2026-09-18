@@ -86,6 +86,11 @@
   .charCard.water:hover, .charCard.water:active{border-color:var(--water);}
   .charCard.grass:hover, .charCard.grass:active{border-color:var(--grass);}
   .charCard.dragon:hover, .charCard.dragon:active{border-color:var(--dragon);}
+  .charCard.locked{cursor:not-allowed;opacity:.5;}
+  .charCard.locked:hover, .charCard.locked:active{transform:none;border-color:var(--line);}
+  .charCard.locked .charIcon img{filter:grayscale(1) brightness(.4);}
+  .charCard.locked .charDesc{color:var(--dim);}
+  .charLockHint{font-size:15px;color:var(--dim);text-align:center;margin-top:2px;}
   .charIcon{width:72px;height:72px;margin:0 auto 10px;border-radius:50%;position:relative;background:transparent;display:flex;align-items:center;justify-content:center;overflow:visible;}
   .charIcon img{width:100%;height:100%;object-fit:contain;}
   .charName{font-size:21px;font-weight:700;margin-bottom:2px;}
@@ -2637,7 +2642,7 @@ function renderAchvScreen(){
         ${unlockedAt ? '' : '<div class="achvLockMark">🔒</div>'}
       </div>
       <div class="achvName">${unlockedAt ? '打倒'+def.name : '???'}</div>
-      <div class="achvDate">${unlockedAt ? formatAchvDate(unlockedAt) : `尚未解鎖（打倒${def.name}）`}</div>
+      <div class="achvDate">${unlockedAt ? formatAchvDate(unlockedAt) : '尚未解鎖'}</div>
     `;
     list.appendChild(item);
   });
@@ -4088,7 +4093,9 @@ function buildCharPicker(){
     const def = CHAR_DEFS[key];
     const stage0 = def.stages[0];
     const card = document.createElement('div');
-    card.className = 'charCard '+def.type;
+    // 迷你龍（龍屬性初始腳色）需先擊敗第9頭目（快龍前的頭目：快龍岩，即 BOSS_ORDER 第9位 dragonite）才能解鎖
+    const locked = (key === 'dragon') && !unlockedAchievements['dragonite'];
+    card.className = 'charCard '+def.type+(locked ? ' locked' : '');
     const iconInner = CHAR_IMAGES[stage0.name]
       ? `<img src="${CHAR_IMAGES[stage0.name]}" alt="${stage0.name}">`
       : `<div style="width:100%;height:100%;border-radius:50%;background:${stage0.color};box-shadow:inset 0 0 0 6px ${stage0.accent};"></div>`;
@@ -4097,8 +4104,11 @@ function buildCharPicker(){
       <div class="charName">${stage0.name}</div>
       <div class="charType ${def.type}Type">${def.typeLabel}</div>
       <div class="charDesc">${charDescHtml(def)}</div>
+      ${locked ? `<div class="charLockHint">🔒 擊敗第9頭目後解鎖</div>` : ''}
     `;
-    card.onclick = ()=> startGame(key);
+    if(!locked){
+      card.onclick = ()=> startGame(key);
+    }
     picker.appendChild(card);
   });
 }
