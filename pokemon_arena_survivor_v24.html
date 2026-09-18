@@ -1583,7 +1583,7 @@ const BOSS_DEFS = {
   },
   nidoking:{
     name:'尼多王', r:56, hp:50000, speed:1.1, dmg:400, xpVal:4500, color:'#8a5fc9',
-    flavor:'超級地震：長時間蓄力後於自身周圍造成大範圍重擊，範圍比大岩蛇更廣更痛',
+    flavor:'超級地震：長時間蓄力後於自身周圍造成大範圍重擊，範圍比大岩蛇更廣更痛；反彈裝甲：每次受到玩家攻擊傷害，會反彈5%傷害給玩家',
     initState:()=>({cooldown:2600, telegraph:0, slamRadius:250}),
     update(dt, boss, st){
       if(st.telegraph > 0){
@@ -1706,7 +1706,7 @@ const BOSS_DEFS = {
     }
   },
   mewtwo:{
-    name:'超夢', r:56, hp:10000, speed:0.6, dmg:500, xpVal:99999, color:'#b78cff',
+    name:'超夢', r:56, hp:20000, speed:0.6, dmg:500, xpVal:99999, color:'#b78cff',
     flavor:'精神擊破：蓄力後朝玩家所在位置發射一顆發光的紫色旋轉球，命中時造成大範圍衝擊傷害（傷害會隨遊戲時間拉長持續增加）；近身念力震波：玩家靠太近時會先蓄力警示，短暫延遲後才震退拉開距離；永不落敗的最終試煉——看看你能撐多久、對牠造成多少傷害',
     keepDist:300, retreatDist:250, // 隨時與玩家保持約300距離
     initState:()=>({cooldown:1200, orbs:[], meleeCooldown:0, meleeTelegraph:0, orbTelegraph:0}),
@@ -1736,7 +1736,7 @@ const BOSS_DEFS = {
           const ang = Math.atan2(player.y-boss.y, player.x-boss.x);
           // spawnGrace：球剛發射後的短暫保護時間，這段時間只會飛行不會判定爆炸，
           // 避免玩家離超夢很近時，球一生成就立刻在同一幀內爆炸、來不及顯示飛行動畫就造成傷害
-          st.orbs.push({x:boss.x, y:boss.y, tx:player.x, ty:player.y, vx:Math.cos(ang)*6, vy:Math.sin(ang)*6, spin:0, spawnGrace:150, trail:[]});
+          st.orbs.push({x:boss.x, y:boss.y, tx:player.x, ty:player.y, vx:Math.cos(ang)*12, vy:Math.sin(ang)*12, spin:0, spawnGrace:150, trail:[]});
           for(let i=0;i<10;i++) particles.push({type:'burst', x:boss.x, y:boss.y, vx:rand(-2,2),vy:rand(-2,2), life:14,maxLife:14, color:'#d8bfff'});
         }
       } else {
@@ -2281,6 +2281,8 @@ function damageEnemy(e, amount, moveType){
     // 玩家對尼多王造成傷害後會中毒：時間重置為2秒（不疊加），每秒扣10%最大生命
     if(player.poisonTimer <= 0) player.poisonTickTimer = 1000;
     player.poisonTimer = 2000;
+    // 反彈裝甲：尼多王每次受到傷害，會將5%的傷害反彈給玩家
+    damagePlayer(amount*0.05, '尼多王的反彈裝甲');
   }
   if(e.isBoss && e.bossKey === 'alakazam'){
     const st = e.bossState;
@@ -2667,7 +2669,7 @@ function renderAchvScreen(){
 // ---------- 成就點系統（用成就數量兌換的永久腳色強化，自動保存於 localStorage） ----------
 const ACHV_POINT_STAT_DEFS = [
   {id:'hp',           label:'HP',       desc:'每級 最大HP +50'},
-  {id:'moveSpeed',    label:'移動速度', desc:'每級 移動速度 +0.5'},
+  {id:'moveSpeed',    label:'移動速度', desc:'每級 移動速度 +0.2'},
   {id:'dmgMult',      label:'傷害倍率', desc:'每級 傷害倍率 +2%'},
   {id:'atkSpeedMult', label:'攻速倍率', desc:'每級 攻速倍率 +2%'},
   {id:'regen',        label:'每秒回復', desc:'每級 每秒回復 最大HP的 +0.5%'},
@@ -2773,7 +2775,7 @@ function renderAchvPointScreen(){
 function getAchvPointBonuses(){
   return {
     hpAdd: (achvPointUpgrades.hp||0)*50,
-    speedAdd: (achvPointUpgrades.moveSpeed||0)*0.5,
+    speedAdd: (achvPointUpgrades.moveSpeed||0)*0.2,
     dmgMultAdd: (achvPointUpgrades.dmgMult||0)*0.02,
     atkSpeedMultAdd: (achvPointUpgrades.atkSpeedMult||0)*0.02,
     regenPct: (achvPointUpgrades.regen||0)*0.005,       // 每秒回復：最大HP的百分比
@@ -2845,8 +2847,8 @@ const UPGRADE_POOL = [
       const after = totalEstimatedDps(p, p._dmgMult, p.atkSpeed*1.05);
       return `特殊招式的攻擊速度 +5%・傷害提升 ${before.toFixed(1)} → ${after.toFixed(1)}/s (+${(after-before).toFixed(1)})`;
     }},
-  {id:'speed', title:upgradeTitle('speed','腳程訓練'), desc:'移動速度 +12%',
-    apply:(p)=>{p.speed*=1.12; p.upgradePicks.speed=(p.upgradePicks.speed||0)+1;}},
+  {id:'speed', title:upgradeTitle('speed','腳程訓練'), desc:'移動速度 +6%',
+    apply:(p)=>{p.speed*=1.06; p.upgradePicks.speed=(p.upgradePicks.speed||0)+1;}},
   {id:'hp', title:upgradeTitle('hp','體質強化'), desc:'HP上限 +25・每秒生命回復 +1.2',
     apply:(p)=>{p.maxHp+=25;p.hp+=25;p.hpRegen=(p.hpRegen||0)+1.2; p.upgradePicks.hp=(p.upgradePicks.hp||0)+1;}},
   {id:'pickup', title:upgradeTitle('pickup','感應範圍'), desc:'經驗值拾取範圍 +40%',
