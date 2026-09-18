@@ -981,9 +981,10 @@ const SPECIAL_DEFS = {
       st.cooldown=(st.cooldown||0)-dt;
       st.zones = st.zones||[];
       if(st.cooldown<=0 && enemies.length>0){
-        st.cooldown=Math.max(2200,4000-st.level*180)/p.atkSpeed;
         const target=nearestEnemy(p.x,p.y);
-        if(target){
+        // 改為玩家範圍450內要有敵人才會施放（不再是全地圖搜尋最近敵人就發動），沒有敵人靠近時持續等待，直到有敵人進入範圍才觸發並重置冷卻
+        if(target && dist(target,p) <= 450){
+          st.cooldown=Math.max(2200,4000-st.level*180)/p.atkSpeed;
           const zx=target.x, zy=target.y, zr=130+st.level*8;
           const dmg=(25+st.level*10)*(p._dmgMult*(p.typeBonus[this.type]||1));
           for(const e of enemiesInRadius(zx,zy,zr)) damageEnemy(e,dmg,this.type);
@@ -2293,7 +2294,7 @@ function damageEnemy(e, amount, moveType){
     }
   }
   e.hp -= amount; e.hitFlash = 6;
-  if(player.lifesteal>0) player.hp = Math.min(player.maxHp, player.hp + amount*player.lifesteal); // 成就點「攻擊吸血」
+  if(player.lifesteal>0 && player.burnTimer<=0) player.hp = Math.min(player.maxHp, player.hp + amount*player.lifesteal); // 成就點「攻擊吸血」（燃燒狀態下無法靠攻擊回血）
   // 龍之怒：只有「龍系招式」命中敵人才會疊加/刷新層數（依造成本次傷害的招式屬性 moveType 判斷，而非角色種族）
   if(moveType === 'dragon' && player.specialsState.dragonFury){
     const furySt = player.specialsState.dragonFury;
@@ -3202,7 +3203,7 @@ function update(dt){
       if(dist(b,e) < b.r+e.r){
         damageEnemy(e, b.dmg, b.moveType);
         if(b.hitSet) b.hitSet.add(e);
-        if(b.heal) player.hp = Math.min(player.maxHp, player.hp + b.dmg*0.3);
+        if(b.heal && player.burnTimer<=0) player.hp = Math.min(player.maxHp, player.hp + b.dmg*0.3); // 燃燒狀態下無法靠攻擊回血
         if(b.pierce>0){ b.pierce--; } else { bullets.splice(i,1); removed=true; }
         break;
       }
