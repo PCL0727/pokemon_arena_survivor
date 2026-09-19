@@ -3,6 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>競技場生存 - 寶可夢 Roguelite</title>
 <style>
   :root{
@@ -4256,6 +4259,21 @@ function buildStartScreenBg(){
 buildStartScreenBg();
 
 // 手機/平板：按下開始遊戲後要求進入全螢幕，桌機滑鼠裝置則不強制全螢幕
+// ⚠️ iOS Safari（iPhone／未加入主畫面的iPad）完全不支援網頁的 Fullscreen API
+// （requestFullscreen 在iOS Safari上是undefined或呼叫了也沒有效果），
+// 這不是程式邏輯錯誤，而是Apple刻意的平台限制，任何網頁都無法用JS強制全螢幕。
+// iOS上唯一能接近全螢幕（隱藏網址列、工具列）的方式，是讓玩家把網頁「加入主畫面」，
+// 從主畫面圖示開啟後，Safari會以「Standalone模式」執行，此時才會沒有瀏覽器介面。
+function isIOSDevice(){
+  const ua = navigator.userAgent || '';
+  const isAppleTouch = /iPad|iPhone|iPod/.test(ua) ||
+    (ua.includes('Macintosh') && navigator.maxTouchPoints > 1); // iPadOS偽裝成Mac UA，用觸控點數輔助判斷
+  return isAppleTouch;
+}
+function isStandaloneDisplay(){
+  return (window.navigator.standalone === true) ||
+    (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
+}
 function requestGameFullscreen(){
   try{
     const el = document.documentElement;
@@ -4265,6 +4283,9 @@ function requestGameFullscreen(){
       if(p && typeof p.catch === 'function') p.catch(()=>{}); // 部分瀏覽器不支援或使用者拒絕時靜默忽略，不影響遊戲繼續
     }
   }catch(err){ /* 全螢幕請求失敗也不影響遊戲繼續 */ }
+}
+function showIOSFullscreenTip(){
+  alert('iOS上的Safari瀏覽器不支援網頁全螢幕功能（這是Apple的系統限制，任何網站都一樣）。\n\n想要接近全螢幕（隱藏網址列）遊玩的話，請這樣做：\n1. 點擊畫面下方的「分享」按鈕（方框＋箭頭圖示）\n2. 選擇「加入主畫面」\n3. 之後改從主畫面上新增的圖示開啟遊戲即可');
 }
 
 // 手機/平板遊玩時，若中途離開全螢幕（例如系統手勢、瀏覽器介面等），
@@ -4278,14 +4299,30 @@ function updateFullscreenBtnVisibility(){
   const btn = document.getElementById('btnFullscreen');
   const isCoarse = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
   const hudShown = !document.getElementById('hud').classList.contains('hidden');
+  if(isStandaloneDisplay()){
+    // 已經是「加入主畫面」開啟的Standalone模式，本來就沒有瀏覽器介面，不需要顯示按鈕
+    btn.classList.add('hidden');
+    return;
+  }
+  if(isIOSDevice() && isCoarse && hudShown){
+    // iOS Safari：改顯示「加入主畫面」提示按鈕（無法用JS強制全螢幕）
+    btn.textContent = '📲 加入主畫面可全螢幕';
+    btn.classList.remove('hidden');
+    return;
+  }
   if(isCoarse && hudShown && !isInFullscreen()){
+    btn.textContent = '⛶ 全螢幕遊玩';
     btn.classList.remove('hidden');
   }else{
     btn.classList.add('hidden');
   }
 }
 document.getElementById('btnFullscreen').onclick = ()=>{
-  requestGameFullscreen();
+  if(isIOSDevice() && !isStandaloneDisplay()){
+    showIOSFullscreenTip();
+  } else {
+    requestGameFullscreen();
+  }
 };
 ['fullscreenchange','webkitfullscreenchange','mozfullscreenchange','MSFullscreenChange'].forEach(evt=>{
   document.addEventListener(evt, updateFullscreenBtnVisibility);
@@ -4293,7 +4330,7 @@ document.getElementById('btnFullscreen').onclick = ()=>{
 
 document.getElementById('btnStartGame').onclick = ()=>{
   const isCoarse = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
-  if(isCoarse) requestGameFullscreen();
+  if(isCoarse && !(isIOSDevice() && !isStandaloneDisplay())) requestGameFullscreen(); // iOS Safari（非主畫面模式）呼叫也沒用，跳過避免無意義的錯誤/例外
   document.getElementById('modeSelect').classList.remove('hidden');
 };
 document.getElementById('btnModeCancel').onclick = ()=>{
