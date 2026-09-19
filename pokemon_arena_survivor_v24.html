@@ -906,7 +906,7 @@ const SPECIAL_DEFS = {
         const targets = enemies.slice().sort((a,b)=>Math.hypot(a.x-p.x,a.y-p.y)-Math.hypot(b.x-p.x,b.y-p.y)).slice(0,count);
         for(const target of targets){
           bullets.push({x:p.x,y:p.y,target,seeking:true,speed:5.5,r:5,
-            dmg:(9+st.level*3)*(p._dmgMult*(p.typeBonus[this.type]||1)),pierce:0,color:'#9dff9d',kind:'seed',life:120,heal:true,moveType:this.type});
+            dmg:(9+st.level*3)*(p._dmgMult*(p.typeBonus[this.type]||1)),pierce:0,color:'#9dff9d',kind:'seed',life:109,heal:true,moveType:this.type});
         }
       }
     }
@@ -949,7 +949,7 @@ const SPECIAL_DEFS = {
         if(target){
           const ang=Math.atan2(target.y-p.y,target.x-p.x);
           bullets.push({x:p.x,y:p.y,vx:Math.cos(ang)*8,vy:Math.sin(ang)*8,r:9,
-            dmg:(14+st.level*5)*(p._dmgMult*(p.typeBonus[this.type]||1)),pierce:1,color:'#7c6bff',kind:'dragonrage',life:240,moveType:this.type,hitSet:new Set()});
+            dmg:(14+st.level*5)*(p._dmgMult*(p.typeBonus[this.type]||1)),pierce:1,color:'#7c6bff',kind:'dragonrage',life:75,moveType:this.type,hitSet:new Set()});
         }
       }
     }
@@ -1047,7 +1047,7 @@ const SPECIAL_DEFS = {
         for(const target of targets){
           const ang = Math.atan2(target.y-p.y, target.x-p.x);
           bullets.push({x:p.x,y:p.y,vx:Math.cos(ang)*9,vy:Math.sin(ang)*9,r:35,
-            dmg:(8+st.level*3)*(p._dmgMult*(p.typeBonus[this.type]||1)),pierce:Infinity,color:'#fff066',kind:'star',life:150,hitSet:new Set(),moveType:this.type});
+            dmg:(8+st.level*3)*(p._dmgMult*(p.typeBonus[this.type]||1)),pierce:Infinity,color:'#fff066',kind:'star',life:67,hitSet:new Set(),moveType:this.type});
         }
       }
     }
@@ -1717,7 +1717,7 @@ const BOSS_DEFS = {
     keepDist:300, retreatDist:250, // 隨時與玩家保持約300距離
     initState:()=>({cooldown:1200, orbs:[], meleeCooldown:0, meleeTelegraph:0, orbTelegraph:0,
       trickRoomCooldown:6000, trickRoomActive:false, trickRoomTimer:0,
-      cumDamageTaken:0}), // 戲法空間：初始有6秒緩衝，之後啟動15秒/冷卻5秒循環；cumDamageTaken：累計受到的實際傷害，用來計算精神屏障減傷的衰減進度
+      cumDamageTaken:0, impacts:[]}), // 戲法空間：初始有6秒緩衝，之後啟動15秒/冷卻5秒循環；cumDamageTaken：累計受到的實際傷害，用來計算精神屏障減傷的衰減進度；impacts：精神擊破落地時的漩渦特效播放清單
     update(dt, boss, st){
       // 近身念力震波：玩家靠太近時先蓄力警示一小段時間，讓玩家能看到動畫並反應，蓄力結束才造成傷害並慢慢把玩家推遠
       st.meleeCooldown -= dt;
@@ -1771,7 +1771,17 @@ const BOSS_DEFS = {
         if(newDist < 16 || newDist > prevDist || dist(o,CENTER) > ARENA_R+60){
           if(dist(o,player) < 300){ damagePlayer(boss.dmg + elapsed*0.2, boss.name); player.invuln = 700; }
           for(let k=0;k<20;k++) particles.push({type:'burst', x:o.x, y:o.y, vx:rand(-4,4),vy:rand(-4,4), life:22,maxLife:22, color:'#b78cff'});
+          // 落地特效：在範圍圓圈內播放一個仿胡地攻擊球的漩渦特效（配色改為偏靛藍紫，與胡地的黃紫區隔）
+          if(!st.impacts) st.impacts = [];
+          st.impacts.push({x:o.x, y:o.y, life:550, maxLife:550, angle:o.spin||0});
           st.orbs.splice(i,1);
+        }
+      }
+      // 精神擊破落地漩渦特效：逐幀倒數，時間到就從清單移除
+      if(st.impacts){
+        for(let i=st.impacts.length-1;i>=0;i--){
+          st.impacts[i].life -= dt;
+          if(st.impacts[i].life <= 0) st.impacts.splice(i,1);
         }
       }
 
@@ -1848,11 +1858,11 @@ const BOSS_DEFS = {
         ctx.restore();
       }
       for(const o of st.orbs){
-        // 落點300範圍提示圈
+        // 落點300範圍提示圈（外框加粗，更容易辨識警戒範圍）
         const tp = worldToScreen(o.tx, o.ty);
         ctx.save();
-        ctx.globalAlpha = 0.12;
-        ctx.strokeStyle = '#b78cff'; ctx.lineWidth = 2;
+        ctx.globalAlpha = 0.3;
+        ctx.strokeStyle = '#b78cff'; ctx.lineWidth = 6;
         ctx.beginPath(); ctx.arc(tp.x, tp.y, 300, 0, Math.PI*2); ctx.stroke();
         ctx.restore();
 
@@ -1906,6 +1916,44 @@ const BOSS_DEFS = {
         ctx.fillStyle = coreGrad;
         ctx.beginPath(); ctx.arc(0,0,40,0,Math.PI*2); ctx.fill();
         ctx.restore();
+      }
+
+      // 精神擊破落地特效：仿胡地攻擊球的漩渦圖案，在範圍圓圈內快速擴散並淡出
+      // （配色與胡地版本區隔：胡地是白→黃→紫，這裡改成白→淺紫→靛藍紫）
+      if(st.impacts){
+        for(const imp of st.impacts){
+          const ip = worldToScreen(imp.x, imp.y);
+          const prog = 1 - imp.life/imp.maxLife; // 0(剛落地) → 1(特效結束)
+          const R = 46 + 220*Math.min(1, prog*1.35); // 快速從中心擴散到接近整個300範圍圈
+          const a = Math.max(0, 1-prog); // 隨時間淡出
+          ctx.save();
+          ctx.translate(ip.x, ip.y);
+          ctx.rotate((imp.angle||0) + prog*7);
+          ctx.globalAlpha = a;
+          const grad = ctx.createRadialGradient(0,0,0, 0,0,R);
+          grad.addColorStop(0,'rgba(255,255,255,0.9)');
+          grad.addColorStop(0.35,'rgba(216,191,255,0.85)');
+          grad.addColorStop(0.7,'rgba(90,60,210,0.55)');
+          grad.addColorStop(1,'rgba(90,60,210,0.05)');
+          ctx.fillStyle = grad;
+          ctx.beginPath(); ctx.arc(0,0,R,0,Math.PI*2); ctx.fill();
+          ctx.strokeStyle = 'rgba(255,255,255,0.85)'; ctx.lineWidth = 2.5;
+          for(let k=0;k<3;k++){
+            ctx.save();
+            ctx.rotate((Math.PI*2/3)*k);
+            ctx.beginPath();
+            for(let ang=0; ang<=Math.PI*1.4; ang+=0.15){
+              const rr = (ang/(Math.PI*1.4))*R*0.95;
+              const x = Math.cos(ang)*rr, y = Math.sin(ang)*rr;
+              if(ang===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+            }
+            ctx.stroke();
+            ctx.restore();
+          }
+          ctx.strokeStyle = 'rgba(90,60,210,0.6)'; ctx.lineWidth = 2;
+          ctx.beginPath(); ctx.arc(0,0,R,0,Math.PI*2); ctx.stroke();
+          ctx.restore();
+        }
       }
     }
   }
