@@ -1769,7 +1769,7 @@ const BOSS_DEFS = {
         // 球到達目標點（或飛出場地）時引爆，範圍300內造成傷害
         // 精神擊破傷害會隨遊戲進行時間增加，每秒 +0.2，讓後期戰鬥更有壓力
         if(newDist < 16 || newDist > prevDist || dist(o,CENTER) > ARENA_R+60){
-          if(dist(o,player) < 300){ damagePlayer(boss.dmg + elapsed*0.2, boss.name); player.invuln = 700; }
+          if(dist(o,player) < 300){ damagePlayer(400 + elapsed*0.2, boss.name); player.invuln = 700; } // 精神擊破初始傷害改為400（原本沿用body撞擊傷害500）
           for(let k=0;k<20;k++) particles.push({type:'burst', x:o.x, y:o.y, vx:rand(-4,4),vy:rand(-4,4), life:22,maxLife:22, color:'#b78cff'});
           // 落地特效：在範圍圓圈內播放一個仿胡地攻擊球的漩渦特效（配色改為偏靛藍紫，與胡地的黃紫區隔）
           if(!st.impacts) st.impacts = [];
@@ -3300,7 +3300,7 @@ function update(dt){
     } else {
       b.x += b.vx*(dt/16.7); b.y += b.vy*(dt/16.7);
     }
-    b.life--;
+    b.life -= dt/16.7; // 修正：改跟dt縮放，避免高更新率螢幕(90/120/144Hz)下子彈存活時間被消耗過快、飛行距離縮水
     if(dist(b,player) < b.r+player.r && player.invuln<=0){
       damagePlayer(b.dmg, b.source); player.invuln = 500;
       particles.push({type:'burst', x:player.x,y:player.y, vx:0,vy:0, life:14,maxLife:14, color:'#ff6bd0'});
@@ -3322,7 +3322,7 @@ function update(dt){
     }
     b.x += b.vx*(dt/16.7);
     b.y += b.vy*(dt/16.7);
-    b.life--;
+    b.life -= dt/16.7; // 修正：改跟dt縮放，避免高更新率螢幕(90/120/144Hz)下子彈存活時間被消耗過快、飛行距離縮水
     let removed=false;
     for(const e of enemies){
       if(b.hitSet && b.hitSet.has(e)) continue; // 高速星星等具備hitSet的子彈：對同一個敵人只會造成一次傷害
