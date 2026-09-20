@@ -355,7 +355,7 @@
     color:var(--fire);margin:0 0 10px;font-size:clamp(22px,5vw,32px);
     text-align:center;text-shadow:0 0 12px #ff5d3a66;
   }
-  #bossPanel .bossDesc{color:var(--text);font-size:17px;line-height:1.8;max-width:380px;margin-bottom:20px;text-align:center;}
+  #bossPanel .bossDesc{color:var(--text);font-size:17px;line-height:1.8;max-width:380px;margin-bottom:20px;text-align:left;white-space:pre-line;}
   #btnBossContinue{
     background:var(--fire);color:#2a0900;border:none;border-radius:8px;
     padding:12px 26px;font-weight:700;cursor:pointer;font-size:17px;pointer-events:all;
@@ -1592,7 +1592,7 @@ const BOSS_DEFS = {
   },
   nidoking:{
     name:'尼多王', r:56, hp:50000, speed:1.1, dmg:400, xpVal:4500, color:'#8a5fc9',
-    flavor:'超級地震：長時間蓄力後於自身周圍造成大範圍重擊，範圍比大岩蛇更廣更痛；反彈裝甲：每次受到玩家攻擊傷害，會反彈5%傷害給玩家；劇毒反擊：玩家每次攻擊尼多王都會反過來讓自己中毒（重置為2秒、不疊加），每秒扣10%最大生命（不受護盾與堅硬皮膚影響）',
+    flavor:'【超級地震】長時間蓄力後，於自身周圍造成大範圍重擊，範圍比大岩蛇更廣更痛。\n【反彈裝甲】每次你對尼多王造成傷害，會反彈該傷害的5%給你（會先被護盾吸收，並受堅硬皮膚減傷）。\n【劇毒反擊】每次你攻擊尼多王，也會讓自己中毒：中毒時間重置為2秒（不疊加），每秒扣10%最大生命，不受護盾與堅硬皮膚影響。\n※ 打尼多王時突然掉血多半是這兩個被動，請留意血量。',
     initState:()=>({cooldown:2600, telegraph:0, slamRadius:250}),
     update(dt, boss, st){
       if(st.telegraph > 0){
@@ -2272,7 +2272,7 @@ const ENEMY_SLOTS = [
   },
   { // 遠程稀有怪
     weight:12, spd:1.0,
-    ranged:true, keepDist:260, atkInterval:1700, projSpeed:4.2, projColor:'#c9a6ff',
+    ranged:true, keepDist:260, atkInterval:1700, projSpeed:4.2, projColor:'#ff3b5c',
     generations:[
       {minLevel:20, name:'可達鴨',   color:'#f4d980', hp:20, dmg:20, xpVal:200, r:13},
       {minLevel:50, name:'瑪瑙水母', color:'#6bb4d8', hp:33, dmg:28, xpVal:354, r:13},
@@ -3476,9 +3476,25 @@ function draw(){
   for(const g of gems){
     const s = worldToScreen(g.x,g.y);
     ctx.save();
+    // 經驗值結晶：上下微浮動的菱形水晶（含切面高光與閃光），形狀與所有圓形/星形/尖刺子彈不同
+    const bob = Math.sin(auraPulse*3 + g.x*0.05)*1.5;
+    const w = g.r*1.15, h = g.r*1.6, cx = s.x, cy = s.y + bob;
     if(g.glow){ ctx.shadowColor = g.color; ctx.shadowBlur = 10+4*Math.sin(auraPulse*6); }
-    ctx.beginPath(); ctx.fillStyle = g.color; ctx.arc(s.x,s.y,g.r,0,Math.PI*2); ctx.fill();
-    ctx.beginPath(); ctx.strokeStyle = '#ffffffaa'; ctx.lineWidth = 1; ctx.arc(s.x,s.y,g.r,0,Math.PI*2); ctx.stroke();
+    ctx.fillStyle = g.color;
+    ctx.beginPath(); ctx.moveTo(cx,cy-h); ctx.lineTo(cx+w,cy); ctx.lineTo(cx,cy+h); ctx.lineTo(cx-w,cy); ctx.closePath(); ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = 'rgba(255,255,255,0.45)'; // 左上亮面
+    ctx.beginPath(); ctx.moveTo(cx,cy-h); ctx.lineTo(cx,cy); ctx.lineTo(cx-w,cy); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = 'rgba(0,0,0,0.25)'; // 右下暗面
+    ctx.beginPath(); ctx.moveTo(cx,cy+h); ctx.lineTo(cx,cy); ctx.lineTo(cx+w,cy); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = '#ffffffcc'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(cx,cy-h); ctx.lineTo(cx+w,cy); ctx.lineTo(cx,cy+h); ctx.lineTo(cx-w,cy); ctx.closePath(); ctx.stroke();
+    const tw = Math.sin(auraPulse*5 + g.y*0.07); // 閃光十字
+    if(tw > 0.6){
+      ctx.strokeStyle = '#ffffff'; const L = g.r*0.9*(tw-0.5)*2;
+      ctx.beginPath(); ctx.moveTo(cx+w*0.5-L,cy-h*0.5); ctx.lineTo(cx+w*0.5+L,cy-h*0.5);
+      ctx.moveTo(cx+w*0.5,cy-h*0.5-L); ctx.lineTo(cx+w*0.5,cy-h*0.5+L); ctx.stroke();
+    }
     ctx.restore();
   }
 
@@ -3572,6 +3588,8 @@ function draw(){
       ctx.globalAlpha = 0.85;
       ctx.fillStyle = '#ffffff';
       ctx.beginPath(); ctx.arc(s.x-b.r*0.35, s.y-b.r*0.35, b.r*0.26, 0, Math.PI*2); ctx.fill();
+      ctx.globalAlpha = 0.95; ctx.strokeStyle = '#ff3b5c'; ctx.lineWidth = 2.5; // 紅色警示外框
+      ctx.beginPath(); ctx.arc(s.x,s.y,b.r+2,0,Math.PI*2); ctx.stroke();
     } else if(b.kind === 'petal'){
       // 大花瓣：沿飛行方向的水滴形，中間帶一道花脈
       const ang = Math.atan2(b.vy, b.vx);
@@ -3590,9 +3608,29 @@ function draw(){
       ctx.beginPath();
       ctx.moveTo(-b.r*1.2, 0); ctx.lineTo(b.r*1.5, 0);
       ctx.stroke();
+      ctx.strokeStyle = '#ff3b5c'; ctx.lineWidth = 2.5; // 紅色警示外框
+      ctx.beginPath();
+      ctx.moveTo(b.r*1.7, 0);
+      ctx.quadraticCurveTo(b.r*0.3, -b.r*1.15, -b.r*1.5, 0);
+      ctx.quadraticCurveTo(b.r*0.3, b.r*1.15, b.r*1.7, 0);
+      ctx.stroke();
     } else {
-      ctx.shadowColor = b.color; ctx.shadowBlur = 8;
-      ctx.beginPath(); ctx.fillStyle = b.color; ctx.arc(s.x,s.y,b.r,0,Math.PI*2); ctx.fill();
+      // 敵方遠程子彈：黑紅核心＋猩紅旋轉尖刺，與玩家子彈（亮色圓點/星星/水彈）明顯區隔
+      const R = b.r*1.5, rot = auraPulse*5 + (b.x+b.y)*0.01;
+      ctx.translate(s.x, s.y); ctx.rotate(rot);
+      ctx.shadowColor = '#ff1744'; ctx.shadowBlur = 12;
+      ctx.fillStyle = '#ff2d55';
+      ctx.beginPath();
+      for(let k=0;k<8;k++){
+        const a = k*Math.PI/4, rr = (k%2===0) ? R*1.5 : R*0.7;
+        ctx.lineTo(Math.cos(a)*rr, Math.sin(a)*rr);
+      }
+      ctx.closePath(); ctx.fill();
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = '#2a0008';
+      ctx.beginPath(); ctx.arc(0,0,R*0.7,0,Math.PI*2); ctx.fill();
+      ctx.fillStyle = '#ff8a9b';
+      ctx.beginPath(); ctx.arc(0,0,R*0.28,0,Math.PI*2); ctx.fill();
     }
     ctx.restore();
   }
