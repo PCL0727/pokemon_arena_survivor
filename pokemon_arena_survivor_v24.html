@@ -89,11 +89,12 @@
   .charCard.water:hover, .charCard.water:active{border-color:var(--water);}
   .charCard.grass:hover, .charCard.grass:active{border-color:var(--grass);}
   .charCard.dragon:hover, .charCard.dragon:active{border-color:var(--dragon);}
-  .charCard.locked{cursor:not-allowed;opacity:.5;}
+  .charCard.locked{cursor:not-allowed;position:relative;overflow:hidden;}
+  .charCard.locked > *:not(.charLockHint){opacity:.35;}
   .charCard.locked:hover, .charCard.locked:active{transform:none;border-color:var(--line);}
   .charCard.locked .charIcon img{filter:grayscale(1) brightness(.4);}
   .charCard.locked .charDesc{color:var(--dim);}
-  .charLockHint{font-size:15px;color:var(--dim);text-align:center;margin-top:2px;}
+  .charLockHint{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;padding:10px;z-index:2;pointer-events:none;background:rgba(0,0,0,.55);font-size:clamp(24px,3.4vw,38px);font-weight:900;line-height:1.35;letter-spacing:2px;color:#ffe600;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;text-shadow:-2px -2px 0 #000,2px -2px 0 #000,-2px 2px 0 #000,2px 2px 0 #000,0 -2px 0 #000,0 2px 0 #000,-2px 0 0 #000,2px 0 0 #000,0 4px 0 #000;}
   .charIcon{width:72px;height:72px;margin:0 auto 10px;border-radius:50%;position:relative;background:transparent;display:flex;align-items:center;justify-content:center;overflow:visible;}
   .charIcon img{width:100%;height:100%;object-fit:contain;}
   .charName{font-size:21px;font-weight:700;margin-bottom:2px;}
@@ -4219,7 +4220,7 @@ function buildCharPicker(){
       <div class="charName">${stage0.name}</div>
       <div class="charType ${def.type}Type">${def.typeLabel}</div>
       <div class="charDesc">${charDescHtml(def)}</div>
-      ${locked ? `<div class="charLockHint">🔒 擊敗第9頭目後解鎖</div>` : ''}
+      ${locked ? `<div class="charLockHint">🔒<br>擊敗第9頭目<br>後解鎖</div>` : ''}
     `;
     if(!locked){
       card.onclick = ()=> startGame(key);
