@@ -301,6 +301,32 @@
   .achvToast .achvToastName{font-size:15px;font-weight:700;white-space:nowrap;}
   @keyframes achvToastIn{from{opacity:0;transform:translateY(-18px) scale(.94);}to{opacity:1;transform:translateY(0) scale(1);}}
   @keyframes achvToastOut{to{opacity:0;transform:translateY(-18px) scale(.94);}}
+  .achvDeleteBtn{
+    margin:4px 0 14px;padding:10px 18px;border-radius:8px;font-weight:700;font-size:15px;
+    cursor:pointer;pointer-events:all;background:transparent;border:1px solid #ff5a5a;color:#ff8a8a;
+  }
+  .achvDeleteBtn:hover{background:#ff5a5a22;}
+  #achvDelConfirm1, #achvDelConfirm2{
+    position:absolute;inset:0;background:#000000e6;display:none;
+    align-items:center;justify-content:center;z-index:31;padding:20px;
+  }
+  #achvDelConfirm2{z-index:32;}
+  #achvDelConfirmPanel1, #achvDelConfirmPanel2{
+    background:var(--panel);border:2px solid #ff3b3b;border-radius:14px;
+    padding:24px 26px;max-width:380px;width:min(90vw,380px);text-align:center;pointer-events:all;
+  }
+  #achvDelConfirmPanel1 h3, #achvDelConfirmPanel2 h3{margin:0 0 10px;color:#ff3b3b;font-size:20px;}
+  #achvDelConfirmPanel1 p, #achvDelConfirmPanel2 p{margin:0 0 10px;color:var(--dim);font-size:14px;line-height:1.6;}
+  .achvDelWarn{color:#ff3b3b !important;font-weight:800;font-size:15px !important;}
+  .achvDelConfirmBtns{display:flex;gap:12px;justify-content:center;margin-top:14px;}
+  .achvDelConfirmBtns button{
+    flex:1;padding:11px 0;border-radius:8px;font-weight:700;cursor:pointer;
+    pointer-events:all;border:none;font-size:15px;
+  }
+  .achvDelCancelBtn{background:transparent;border:1px solid var(--line);color:var(--dim);}
+  .achvDelCancelBtn:hover{border-color:var(--text);color:var(--text);}
+  .achvDelConfirmBtn{background:#ff3b3b;color:#2a0a0a;}
+  .achvDelConfirmBtn:hover{filter:brightness(1.1);}
   #btnModeCancel, .backToModeBtn, #btnAchvBack, #btnAchvPointBack{
     background:var(--gold);border:none;color:#1a1200;font-weight:700;
     padding:10px 26px;border-radius:8px;cursor:pointer;pointer-events:all;
@@ -534,6 +560,7 @@
   <div id="achvScreen" class="hidden">
     <div id="achvPanel">
       <h2>🏆 遊戲成就</h2>
+      <button id="btnAchvDelete" class="achvDeleteBtn">🗑️ 刪除成就紀錄</button>
       <div id="achvProgress"></div>
       <h3 class="achvSectionTitle">頭目成就</h3>
       <div id="achvList"></div>
@@ -543,6 +570,29 @@
       <h3 class="achvSectionTitle">特殊成就</h3>
       <div id="achvSpecialList"></div>
       <button id="btnAchvBack">返回</button>
+    </div>
+  </div>
+
+  <div id="achvDelConfirm1">
+    <div id="achvDelConfirmPanel1">
+      <h3>刪除所有成就紀錄？</h3>
+      <p>這會清除目前已解鎖的頭目、小怪擊殺、躍起、最終進化擊倒等全部成就，以及用成就點數兌換的腳色永久強化。</p>
+      <p class="achvDelWarn">⚠️ 刪除後將「無法復原」，請再次確認！</p>
+      <div class="achvDelConfirmBtns">
+        <button id="btnAchvDelCancel1" class="achvDelCancelBtn">取消</button>
+        <button id="btnAchvDelNext" class="achvDelConfirmBtn">下一步</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="achvDelConfirm2">
+    <div id="achvDelConfirmPanel2">
+      <h3>最後確認</h3>
+      <p class="achvDelWarn">⚠️ 這是最後一次確認：刪除後所有成就與成就點強化「無法復原」，確定要刪除嗎？</p>
+      <div class="achvDelConfirmBtns">
+        <button id="btnAchvDelCancel2" class="achvDelCancelBtn">取消</button>
+        <button id="btnAchvDelFinal" class="achvDelConfirmBtn">確認刪除</button>
+      </div>
     </div>
   </div>
 
@@ -2794,6 +2844,30 @@ function renderAchvScreen(){
   updateAchvModeBtnProgress();
 }
 
+// 刪除全部成就紀錄（含成就點數兌換的永久強化），清空 localStorage 內對應資料並重置記憶體狀態
+function resetAchievementSystem(){
+  try{
+    localStorage.removeItem(ACHV_STORAGE_KEY);
+    localStorage.removeItem(MINION_KILL_ACHV_KEY);
+    localStorage.removeItem(MINION_KILL_TOTAL_KEY);
+    localStorage.removeItem(LEAP_ACHV_KEY);
+    localStorage.removeItem(FINAL_STAGE_KILL_ACHV_KEY);
+    localStorage.removeItem(FINAL_STAGE_KILL_TOTAL_KEY);
+    localStorage.removeItem(ACHV_POINT_UPGRADES_KEY);
+  }catch(err){ /* 清除失敗（例如無痕模式）也不影響繼續 */ }
+  unlockedAchievements = {};
+  unlockedMinionKillAchievements = {};
+  totalMinionKills = 0;
+  leapAchievementUnlockedAt = null;
+  unlockedFinalStageBossKillAchievements = {};
+  finalStageBossKillTotals = {fire:new Set(), water:new Set(), grass:new Set()};
+  achvPointUpgrades = loadAchvPointUpgrades(); // 剛清除 localStorage，這裡會回傳全部歸零的狀態
+  renderAchvScreen();
+  updateAchvModeBtnProgress();
+  updateAchvPointsModeBtn();
+  if(!document.getElementById('achvPointScreen').classList.contains('hidden')) renderAchvPointScreen();
+}
+
 // ---------- 成就點系統（用成就數量兌換的永久腳色強化，自動保存於 localStorage） ----------
 const ACHV_POINT_STAT_DEFS = [
   {id:'hp',           label:'HP',       desc:'每級 最大HP +50'},
@@ -4349,7 +4423,8 @@ function updateFullscreenBtnVisibility(){
     btn.classList.remove('hidden');
     return;
   }
-  if(isCoarse && hudShown && !isInFullscreen()){
+  if(hudShown && !isInFullscreen()){
+    // 手機/平板與桌機都顯示按鈕；桌機不會自動全螢幕，純粹提供手動切換
     btn.textContent = '⛶ 全螢幕遊玩';
     btn.classList.remove('hidden');
   }else{
@@ -4384,6 +4459,23 @@ document.getElementById('modeBtnAchv').onclick = ()=>{
   document.getElementById('modeSelect').classList.add('hidden');
   renderAchvScreen();
   document.getElementById('achvScreen').classList.remove('hidden');
+};
+document.getElementById('btnAchvDelete').onclick = ()=>{
+  document.getElementById('achvDelConfirm1').style.display = 'flex';
+};
+document.getElementById('btnAchvDelCancel1').onclick = ()=>{
+  document.getElementById('achvDelConfirm1').style.display = 'none';
+};
+document.getElementById('btnAchvDelNext').onclick = ()=>{
+  document.getElementById('achvDelConfirm1').style.display = 'none';
+  document.getElementById('achvDelConfirm2').style.display = 'flex';
+};
+document.getElementById('btnAchvDelCancel2').onclick = ()=>{
+  document.getElementById('achvDelConfirm2').style.display = 'none';
+};
+document.getElementById('btnAchvDelFinal').onclick = ()=>{
+  document.getElementById('achvDelConfirm2').style.display = 'none';
+  resetAchievementSystem();
 };
 document.getElementById('btnAchvBack').onclick = ()=>{
   document.getElementById('achvScreen').classList.add('hidden');
