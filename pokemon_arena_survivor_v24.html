@@ -2938,7 +2938,6 @@ function damagePlayer(amount, source, ignoreShield, ignoreArmor, noDodge){
 }
 function showDodgeEffect(){
   player._dodgeFlash = 36; // 閃避成功：分身殘影顯示約0.6秒後淡出
-  for(let i=0;i<10;i++) particles.push({type:'burst', x:player.x, y:player.y, vx:rand(-2.5,2.5), vy:rand(-2.5,2.5), life:16,maxLife:16, color:'#b9a3ff'});
   particles.push({type:'dodgeText', x:player.x, y:player.y-player.r-10, vx:0, vy:-0.7, life:32, maxLife:32, color:'#ffffff'});
 }
 function gemTierFor(val){
