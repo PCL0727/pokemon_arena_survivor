@@ -2937,9 +2937,9 @@ function damagePlayer(amount, source, ignoreShield, ignoreArmor, noDodge){
   return true;
 }
 function showDodgeEffect(){
-  player._dodgeFlash = 14; // 分身殘影短暫變亮
+  player._dodgeFlash = 36; // 閃避成功：分身殘影顯示約0.6秒後淡出
   for(let i=0;i<10;i++) particles.push({type:'burst', x:player.x, y:player.y, vx:rand(-2.5,2.5), vy:rand(-2.5,2.5), life:16,maxLife:16, color:'#b9a3ff'});
-  particles.push({type:'dodgeText', x:player.x, y:player.y-player.r-10, vx:0, vy:-0.7, life:32, maxLife:32, color:'#e3d9ff'});
+  particles.push({type:'dodgeText', x:player.x, y:player.y-player.r-10, vx:0, vy:-0.7, life:32, maxLife:32, color:'#ffffff'});
 }
 function gemTierFor(val){
   if(val >= 100) return {r:11, color:'#b78cff', glow:true};  // 高階/王牌掉落：紫金光暈
@@ -3738,7 +3738,7 @@ function update(dt){
     player.freezeImmune -= dt;
   }
   if(player.paralyzeTimer > 0) player.paralyzeTimer = Math.max(0, player.paralyzeTimer - dt);
-  if(player._dodgeFlash > 0) player._dodgeFlash--; // 影子分身閃避成功的殘影閃光
+  if(player._dodgeFlash > 0) player._dodgeFlash--; // 影子分身閃避成功的殘影倒數
 
   // 雙彈瓦斯汙泥炸彈：視野限制倒數
   if(player.visionTimer > 0) player.visionTimer -= dt;
@@ -4209,8 +4209,8 @@ function draw(){
     ctx.globalAlpha = Math.max(0, Math.min(1, envelope));
     if(p.type==='dodgeText'){
       ctx.font = 'bold 20px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(30,10,60,0.9)'; ctx.strokeText('閃避！', s.x, s.y);
-      ctx.fillStyle = p.color; ctx.fillText('閃避！', s.x, s.y);
+      ctx.globalAlpha *= 0.7; // 白色半透明文字（再疊上淡入淡出）
+      ctx.fillStyle = '#ffffff'; ctx.fillText('閃避！', s.x, s.y);
     } else if(p.type==='slash'){
       ctx.strokeStyle = p.color; ctx.lineWidth=4;
       ctx.beginPath(); ctx.arc(s.x,s.y, (player.meleeRange||60)*(1-p.life/p.maxLife), -0.6, 0.6); ctx.stroke();
@@ -4323,15 +4323,15 @@ function draw(){
   }
 
   const ps = worldToScreen(player.x, player.y);
-  // 影子分身：玩家身旁左右飄移的兩個半透明殘影（閃避成功的瞬間會變亮）
-  if(player.specialsState.shadowClone){
+  // 影子分身：只有閃避成功時，玩家身旁才會出現左右兩個半透明的分身殘影，之後逐漸淡出
+  if(player._dodgeFlash > 0){
     const cloneImg = CHAR_IMG_ELS[player.def.stages[player.stageIndex].name];
-    const flash = player._dodgeFlash > 0 ? 0.35 : 0;
+    const fade = Math.min(1, player._dodgeFlash/36);   // 1 -> 0
     for(let k=0;k<2;k++){
-      const a = auraPulse*1.6 + k*Math.PI;
-      const ox = Math.cos(a)*player.r*1.0, oy = Math.sin(a*0.8)*player.r*0.3;
+      const side = k===0 ? -1 : 1;
+      const ox = side*player.r*(0.9 + 0.5*(1-fade)), oy = 0; // 殘影向兩側緩緩飄開
       ctx.save();
-      ctx.globalAlpha = 0.2 + flash;
+      ctx.globalAlpha = 0.4*fade;
       if(cloneImg && cloneImg.complete && cloneImg.naturalWidth>0){
         const cs = player.r*2.6;
         ctx.drawImage(cloneImg, ps.x+ox-cs/2, ps.y+oy-cs/2, cs, cs);
