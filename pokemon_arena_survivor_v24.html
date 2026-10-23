@@ -180,6 +180,18 @@
     transition:transform .12s,box-shadow .12s;
   }
   #btnStartGame:active{transform:translateY(4px);box-shadow:0 2px 0 #b8862a,0 4px 14px #000a;}
+  /* 開始遊戲按鈕下方：操作方式選項（左下搖桿 / 點擊移動） */
+  #ctrlModeBox{display:flex;flex-direction:column;align-items:center;gap:8px;margin-top:-6px;pointer-events:all;}
+  #ctrlModeLabel{color:var(--dim);font-size:clamp(13px,2.4vw,15px);letter-spacing:1px;text-shadow:0 2px 8px #000c;}
+  #ctrlModeRow{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;}
+  .ctrlBtn{
+    padding:10px 18px;font-size:clamp(14px,2.6vw,16px);font-weight:700;border-radius:9px;cursor:pointer;pointer-events:all;
+    background:#0b0f15cc;color:var(--text);border:2px solid #ffffff2a;
+    transition:border-color .12s,background .12s,color .12s;
+  }
+  .ctrlBtn:hover{border-color:#ffffff66;}
+  .ctrlBtn.active{border-color:var(--gold);background:#3a2c0acc;color:#ffe38a;box-shadow:0 0 12px #ffcf5c44;}
+  #ctrlModeHint{color:var(--dim);font-size:clamp(12px,2.2vw,14px);max-width:380px;line-height:1.5;text-shadow:0 2px 8px #000c;}
 
   /* ---------- 選擇模式彈窗 ---------- */
   #modeSelect{
@@ -532,6 +544,14 @@
       <h1 id="startTitle">競技場生存者<br><span>寶可夢 Roguelite</span></h1>
       <div class="startSub">無數野生寶可夢迎面而來，你能存活到最後嗎？</div>
       <button id="btnStartGame">開始遊戲</button>
+      <div id="ctrlModeBox">
+        <div id="ctrlModeLabel">操作方式</div>
+        <div id="ctrlModeRow">
+          <button id="ctrlJoystick" class="ctrlBtn active" aria-pressed="true">🕹 左下搖桿</button>
+          <button id="ctrlClick" class="ctrlBtn" aria-pressed="false">👆 點擊移動</button>
+        </div>
+        <div id="ctrlModeHint"></div>
+      </div>
     </div>
   </div>
 
@@ -2756,6 +2776,7 @@ function resetGameState(charKey){
   lastHitBy = null;
   defeatedBossesThisRun = new Set();
   minionKillCountThisRun = 0;
+  moveTarget = null; clickPointerId = null;
   dodgeCountThisRun = 0;
   damageTakenThisRun = 0;
   finalStageBossKillCountThisRun = {fire:0, water:0, grass:0, dragon:0, ghost:0};
@@ -3992,12 +4013,62 @@ function setupJoystick(){
 }
 setupJoystick();
 
+// ---------- 操作方式：左下搖桿（原本的方式）／點擊移動（角色走向螢幕上點擊的位置） ----------
+const CONTROL_MODE_KEY = 'arenaSurvivor_controlMode_v1';
+function loadControlMode(){
+  try{ return localStorage.getItem(CONTROL_MODE_KEY) === 'click' ? 'click' : 'joystick'; }
+  catch(err){ return 'joystick'; }
+}
+let controlMode = loadControlMode(); // 'joystick' | 'click'
+let moveTarget = null;     // 點擊移動：目標位置（世界座標），走到就清除
+let clickPointerId = null; // 目前按住中的指標：按住期間目標會跟著指標移動
+function screenToWorld(sx, sy){ return { x: sx - W/2 + camera.x, y: sy - H/2 + camera.y }; }
+function applyControlMode(){
+  const isCoarse = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
+  const click = controlMode === 'click';
+  document.getElementById('joystick').classList.toggle('active-touch', isCoarse && !click); // 點擊移動模式不顯示搖桿
+  document.getElementById('ctrlJoystick').classList.toggle('active', !click);
+  document.getElementById('ctrlClick').classList.toggle('active', click);
+  document.getElementById('ctrlJoystick').setAttribute('aria-pressed', String(!click));
+  document.getElementById('ctrlClick').setAttribute('aria-pressed', String(click));
+  document.getElementById('ctrlModeHint').textContent = click
+    ? '點擊或按住畫面任一處，角色會走向點擊的位置（也可以用 WASD / 方向鍵）'
+    : '用 WASD / 方向鍵，或手機/平板左下角的虛擬搖桿移動';
+  document.getElementById('hint').textContent = click
+    ? '點擊或按住畫面：角色走向點擊位置　｜　桌機也可用 WASD / 方向鍵'
+    : '桌機：WASD / 方向鍵移動　｜　手機/平板：左下角搖桿移動';
+  if(!click){ moveTarget = null; clickPointerId = null; }
+}
+function setControlMode(mode){
+  controlMode = mode;
+  try{ localStorage.setItem(CONTROL_MODE_KEY, mode); }catch(err){ /* 保存失敗也不影響遊戲繼續 */ }
+  applyControlMode();
+}
+document.getElementById('ctrlJoystick').onclick = ()=>setControlMode('joystick');
+document.getElementById('ctrlClick').onclick = ()=>setControlMode('click');
+applyControlMode();
+
+function setMoveTargetFromPointer(e){ const w = screenToWorld(e.clientX, e.clientY); moveTarget = {x:w.x, y:w.y}; }
+// 只有點在遊戲畫面（canvas）上才會觸發：按鈕、升級面板、搖桿等介面元素不會誤觸
+canvas.addEventListener('pointerdown', e=>{
+  if(controlMode !== 'click' || !player || paused) return;
+  if(e.pointerType === 'mouse' && e.button !== 0) return;
+  clickPointerId = e.pointerId;
+  setMoveTargetFromPointer(e);
+});
+window.addEventListener('pointermove', e=>{
+  if(controlMode === 'click' && clickPointerId === e.pointerId && player && !paused) setMoveTargetFromPointer(e); // 按住拖曳：目標跟著指標
+});
+function endClickPointer(e){ if(clickPointerId === e.pointerId) clickPointerId = null; } // 放開後，角色仍會走到最後的目標位置
+window.addEventListener('pointerup', endClickPointer);
+window.addEventListener('pointercancel', endClickPointer);
+
 window.addEventListener('keydown', e=>{ keys[e.key.toLowerCase()]=true; });
 window.addEventListener('keyup', e=>{ keys[e.key.toLowerCase()]=false; });
 
 // ---------- 主更新 ----------
 function update(dt){
-  if(paused) return;
+  if(paused){ moveTarget = null; clickPointerId = null; return; } // 暫停/升級面板時取消點擊移動的目標
   elapsed = (performance.now()-startTime)/1000;
   auraPulse += dt*0.004;
 
@@ -4007,6 +4078,14 @@ function update(dt){
   if(keys['a']||keys['arrowleft']) dx-=1;
   if(keys['d']||keys['arrowright']) dx+=1;
   if(joyActive){ dx += joyVector.x; dy += joyVector.y; }
+  // 點擊移動：走向點擊的位置；到達（距離<8）就停下；改按鍵盤/搖桿時取消目標
+  if(controlMode === 'click' && moveTarget){
+    if(dx !== 0 || dy !== 0){ moveTarget = null; }
+    else{
+      const tx = moveTarget.x-player.x, ty = moveTarget.y-player.y, td = Math.hypot(tx,ty);
+      if(td < 8) moveTarget = null; else { dx = tx/td; dy = ty/td; }
+    }
+  }
 
   const len = Math.hypot(dx,dy);
   player.isMoving = len > 0.05 && !(player.freezeTimer > 0); // 冰凍：無法移動
@@ -4703,6 +4782,15 @@ function draw(){
     ctx.restore();
   }
 
+  if(controlMode === 'click' && moveTarget){ // 點擊移動：在目標位置畫一圈脈動的標記
+    const mt = worldToScreen(moveTarget.x, moveTarget.y), pr = 1 + 0.15*Math.sin(auraPulse*6);
+    ctx.save();
+    ctx.globalAlpha = 0.75; ctx.strokeStyle = '#ffe38a'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.arc(mt.x, mt.y, 13*pr, 0, Math.PI*2); ctx.stroke();
+    ctx.globalAlpha = 0.55; ctx.fillStyle = '#ffe38a';
+    ctx.beginPath(); ctx.arc(mt.x, mt.y, 4, 0, Math.PI*2); ctx.fill();
+    ctx.restore();
+  }
   const ps = worldToScreen(player.x, player.y);
   // 影子分身：只有閃避成功時，玩家身旁才會出現左右兩個半透明的分身殘影，之後逐漸淡出
   if(player._dodgeFlash > 0){
