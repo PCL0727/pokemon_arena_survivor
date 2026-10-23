@@ -195,10 +195,15 @@
 
   /* ---------- 選擇模式彈窗 ---------- */
   #modeSelect{
-    position:absolute;inset:0;background:#000000d9;display:flex;
-    align-items:center;justify-content:center;z-index:20;padding:20px;
+    position:absolute;inset:0;background:#000000d9;z-index:20;
+    /* 安全置中：內容比螢幕矮時垂直置中；比螢幕高時從最上面開始排並可上下捲動（不會再把最上面的「一般遊玩」切掉） */
+    display:flex;flex-direction:column;align-items:center;justify-content:flex-start;
+    overflow-y:auto;overscroll-behavior:contain;touch-action:pan-y;-webkit-overflow-scrolling:touch;
+    padding:calc(14px + env(safe-area-inset-top)) calc(14px + env(safe-area-inset-right)) calc(14px + env(safe-area-inset-bottom)) calc(14px + env(safe-area-inset-left));
   }
+  #modeSelect::before, #modeSelect::after{content:'';flex:0 0 auto;height:0;margin:auto 0;}
   #modePanel{
+    flex:0 0 auto;
     background:var(--panel);border:2px solid var(--line);border-radius:14px;
     padding:30px 32px;max-width:520px;width:min(92vw,520px);text-align:center;
     pointer-events:all;
@@ -222,6 +227,18 @@
   .modeBtn.locked:hover{transform:none;border-color:var(--line);}
   .modeLockHint{display:none;position:absolute;inset:0;align-items:center;justify-content:center;text-align:center;padding:8px;z-index:2;pointer-events:none;background:rgba(0,0,0,.78);font-size:clamp(15px,2vw,21px);font-weight:900;line-height:1.4;letter-spacing:1px;color:#ffe600;text-shadow:-2px -2px 0 #000,2px -2px 0 #000,-2px 2px 0 #000,2px 2px 0 #000,0 -2px 0 #000,0 2px 0 #000,-2px 0 0 #000,2px 0 0 #000,0 3px 0 #000;}
   .modeBtn.locked .modeLockHint{display:flex;}
+
+  /* 矮螢幕（例如橫著拿的手機）：縮小間距與格子，並讓格子一排放三個，盡量一屏看完 */
+  @media (max-height:640px){
+    #modePanel{padding:14px 16px;max-width:760px;width:min(94vw,760px);}
+    #modePanel h2{margin:0 0 10px;font-size:18px;}
+    #modeBtnRow{gap:8px;margin-bottom:10px;}
+    .modeBtn{flex:1 1 140px;padding:10px 8px;}
+    .modeIcon{font-size:20px;margin-bottom:4px;}
+    .modeName{font-size:15px;}
+    .modeDesc{font-size:12px;}
+  }
+  @media (max-height:640px) and (min-width:600px){ .modeBtn{flex:1 1 30%;} } /* 橫向（寬）的矮螢幕才一排三格；直向手機維持一排兩格 */
 
   /* ---------- 成就畫面 ---------- */
   #achvScreen{
