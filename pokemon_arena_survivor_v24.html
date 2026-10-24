@@ -32,14 +32,14 @@
     touch-action:none;
   }
   #game-wrap{
-    position:fixed;inset:0;
-    width:100vw;height:100vh;height:100dvh;
+    position:fixed;top:0;left:0;right:0;bottom:0; /* 直接貼齊目前可見的畫面：不寫死 100vw/100vh，避免部分手機瀏覽器（含全螢幕前後）算出比實際畫面大的尺寸而被裁切 */
+    overflow:hidden;
     background:radial-gradient(ellipse at center,#141a24 0%,#0a0e14 70%);
   }
-  canvas{ position:absolute;inset:0;display:block;width:100%;height:100%; }
+  canvas{ position:absolute;top:0;left:0;display:block;width:100%;height:100%; }
   #hud{
     position:absolute;top:0;left:0;right:0;
-    padding:calc(10px + env(safe-area-inset-top)) 14px 0;
+    padding:calc(10px + env(safe-area-inset-top)) calc(14px + env(safe-area-inset-right)) 0 calc(14px + env(safe-area-inset-left));
     display:grid;grid-template-columns:1fr auto 1fr;align-items:flex-start;
     pointer-events:none;font-size:18px;
   }
@@ -769,18 +769,37 @@ Object.keys(ENEMY_IMAGES).forEach(name=>{ const im = new Image(); im.src = ENEMY
 let W = window.innerWidth, H = window.innerHeight;
 let DPR = Math.min(window.devicePixelRatio || 1, 2);
 
+const gameWrap = document.getElementById('game-wrap');
+// 以外層容器「實際排版後的大小」（也就是玩家真的看得到的區域）為準，讀不到才退回 innerWidth/innerHeight。
+// 這樣畫布、鏡頭中心、HUD、搖桿都用同一個尺寸，不會因為 innerHeight 與實際可見高度不一致而把下方裁掉
+function readViewportSize(){
+  const w = gameWrap.clientWidth || window.innerWidth;
+  const h = gameWrap.clientHeight || window.innerHeight;
+  return {w, h};
+}
 function resizeCanvas(){
-  W = window.innerWidth;
-  H = window.innerHeight;
-  DPR = Math.min(window.devicePixelRatio || 1, 2);
+  const {w, h} = readViewportSize();
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  if(w === W && h === H && dpr === DPR && canvas.width === Math.round(w*dpr)) return; // 大小沒變就不重設畫布（重設會清空畫面）
+  W = w; H = h; DPR = dpr;
   canvas.width = Math.round(W*DPR);
   canvas.height = Math.round(H*DPR);
   canvas.style.width = W+'px';
   canvas.style.height = H+'px';
   ctx.setTransform(DPR,0,0,DPR,0,0);
 }
-window.addEventListener('resize', resizeCanvas);
-window.addEventListener('orientationchange', ()=>setTimeout(resizeCanvas,150));
+// 全螢幕／轉向切換時，部分手機要過一小段時間才完成排版（resize事件太早觸發會量到舊的大小），所以事件發生後再補量幾次
+let resizeTimers = [];
+function scheduleResize(){
+  resizeCanvas();
+  resizeTimers.forEach(clearTimeout);
+  resizeTimers = [100, 300, 700, 1500].map(ms=>setTimeout(resizeCanvas, ms));
+}
+window.addEventListener('resize', scheduleResize);
+window.addEventListener('orientationchange', scheduleResize);
+['fullscreenchange','webkitfullscreenchange','mozfullscreenchange','MSFullscreenChange'].forEach(evt=>document.addEventListener(evt, scheduleResize));
+if(window.visualViewport) window.visualViewport.addEventListener('resize', scheduleResize);
+if(window.ResizeObserver) new ResizeObserver(()=>resizeCanvas()).observe(gameWrap);
 resizeCanvas();
 
 // ---------- 世界設定 ----------
@@ -5200,6 +5219,7 @@ document.getElementById('btnGiveUpConfirm').onclick = ()=>{
 // ---------- 遊戲流程 ----------
 let lastTime = 0;
 function loop(t){
+  if(gameWrap.clientWidth !== W || gameWrap.clientHeight !== H) resizeCanvas(); // 保險：畫面大小變了但事件漏掉時，下一幀自動修正
   const dt = Math.min(40, t-lastTime||16);
   lastTime = t;
   if(running){ update(dt); draw(); animId = requestAnimationFrame(loop); }
@@ -5423,7 +5443,8 @@ function requestGameFullscreen(){
     const el = document.documentElement;
     const req = el.requestFullscreen || el.webkitRequestFullscreen || el.mozRequestFullScreen || el.msRequestFullscreen;
     if(req){
-      const p = req.call(el);
+      let p;
+      try{ p = req.call(el, {navigationUI:'hide'}); }catch(err){ p = req.call(el); } // 要求隱藏 Android 底部導覽列，不支援的瀏覽器退回一般全螢幕
       if(p && typeof p.catch === 'function') p.catch(()=>{}); // 部分瀏覽器不支援或使用者拒絕時靜默忽略，不影響遊戲繼續
     }
   }catch(err){ /* 全螢幕請求失敗也不影響遊戲繼續 */ }
