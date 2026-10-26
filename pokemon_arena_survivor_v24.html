@@ -1021,13 +1021,13 @@ const SPECIAL_DEFS = {
   },
   parasiteSeed:{
     type:'grass',
-    name:'寄生種子', flavor:'發射追蹤種子，命中後回復HP，每升2級增加1顆發射數量',
+    name:'寄生種子', flavor:'發射追蹤種子，命中後回復HP，每升1級增加1顆發射數量（Lv.10 共10顆，每顆各追一隻不同的敵人）',
     desc:(lvl)=>{
-      const count = 1+Math.floor((lvl-1)/2);
+      const count = lvl;
       return `冷卻 ${Math.max(0.8,1.6-lvl*0.08).toFixed(1)}s・發射 ${count} 發追蹤種子・傷害 ${Math.round(9+lvl*3)}`;
     },
     estimateDps(lvl,dmgMult,atkSpeed){
-      const count = 1+Math.floor((lvl-1)/2);
+      const count = lvl;
       const cdSec = Math.max(800,1600-lvl*80)/atkSpeed/1000;
       return count*(9+lvl*3)*dmgMult/cdSec;
     },
@@ -1035,7 +1035,7 @@ const SPECIAL_DEFS = {
       st.cooldown=(st.cooldown||0)-dt;
       if(st.cooldown<=0 && enemies.length>0){
         st.cooldown=Math.max(800,1600-st.level*80)/p.atkSpeed;
-        const count = 1+Math.floor((st.level-1)/2);
+        const count = st.level;
         const targets = enemies.slice().sort((a,b)=>Math.hypot(a.x-p.x,a.y-p.y)-Math.hypot(b.x-p.x,b.y-p.y)).slice(0,count);
         for(const target of targets){
           bullets.push({x:p.x,y:p.y,target,seeking:true,speed:5.5,r:5,
