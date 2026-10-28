@@ -1021,7 +1021,7 @@ const SPECIAL_DEFS = {
   },
   parasiteSeed:{
     type:'grass',
-    name:'寄生種子', flavor:'發射追蹤種子，命中後回復HP，每升1級增加1顆發射數量（Lv.10 共10顆，每顆各追一隻不同的敵人）',
+    name:'寄生種子', flavor:'發射追蹤種子，命中後回復HP，每升1級增加1顆發射數量（Lv.10 共10顆）。種子會先全部發射、散開飛出，之後才各自尋找目標：盡量平均追不同的敵人，只有1隻敵人時則全部一起追牠',
     desc:(lvl)=>{
       const count = lvl;
       return `冷卻 ${Math.max(0.8,1.6-lvl*0.08).toFixed(1)}s・發射 ${count} 發追蹤種子・傷害 ${Math.round(9+lvl*3)}`;
@@ -1036,10 +1036,15 @@ const SPECIAL_DEFS = {
       if(st.cooldown<=0 && enemies.length>0){
         st.cooldown=Math.max(800,1600-st.level*80)/p.atkSpeed;
         const count = st.level;
-        const targets = enemies.slice().sort((a,b)=>Math.hypot(a.x-p.x,a.y-p.y)-Math.hypot(b.x-p.x,b.y-p.y)).slice(0,count);
-        for(const target of targets){
-          bullets.push({x:p.x,y:p.y,target,seeking:true,speed:5.5,r:5,
-            dmg:(9+st.level*3)*(p._dmgMult*(p.typeBonus[this.type]||1)),pierce:0,color:'#9dff9d',kind:'seed',life:109,heal:true,moveType:this.type});
+        // 種子數量固定全部發射（不再先找目標再決定發射幾顆，所以場上只有1隻敵人/頭目時也會發射全部）：
+        // 先朝四周散開飛出一小段，之後才各自尋找目標；同一批種子會盡量平均分散到不同的敵人，敵人不夠多時才會有多顆追同一隻
+        const volley = new Map();
+        const base = Math.random()*Math.PI*2;
+        const dmg = (9+st.level*3)*(p._dmgMult*(p.typeBonus[this.type]||1));
+        for(let i=0;i<count;i++){
+          const a = base + i*Math.PI*2/count;
+          bullets.push({x:p.x,y:p.y,vx:Math.cos(a)*5.5,vy:Math.sin(a)*5.5,target:null,volley,searchDelay:180,
+            seeking:true,speed:5.5,r:5,dmg,pierce:0,color:'#9dff9d',kind:'seed',life:125,heal:true,moveType:this.type});
         }
       }
     }
@@ -1312,6 +1317,16 @@ function getDodgeRate(p){
     + (p.achvDodge || 0)       // 成就點「閃避攻擊」永久加成（每級+2%，最高+10%）
     + (p.passiveDodge || 0);   // 鬼斯系列被動「無形」：10%
 }
+// 寄生種子挑目標：優先選「同一批種子還沒鎖定過的」敵人（距離近的先），所有敵人都被鎖定過了才讓多顆種子追同一隻
+function pickSeedTarget(b){
+  let best=null, bestKey=Infinity;
+  for(const e of enemies){
+    const key = (b.volley.get(e)||0)*1e6 + Math.hypot(e.x-b.x, e.y-b.y);
+    if(key < bestKey){ bestKey = key; best = e; }
+  }
+  if(best) b.volley.set(best, (b.volley.get(best)||0)+1);
+  return best;
+}
 function nearestConfusableEnemy(x,y){
   let t=null,best=Infinity;
   for(const e of enemies){
@@ -1339,6 +1354,7 @@ function updateConfusedEnemy(e, spd, dt){
     if(o === e) continue;
     const d = Math.hypot(o.x-e.x,o.y-e.y); if(d<best){best=d;t=o;}
   }
+  if(e.isBoss && BOSS_DEFS[e.bossKey].confusedAttack){ BOSS_DEFS[e.bossKey].confusedAttack(dt, e, e.bossState, t); return; } // 雷丘：沿用自己的招式與倒數（沒有目標時只會把進行中的倒數走完）
   if(!t) return; // 場上沒有其他敵人：原地發呆
   if(best > e.r + t.r + 2){
     const a = Math.atan2(t.y-e.y, t.x-e.x);
@@ -1578,6 +1594,30 @@ const BOSS_DEFS = {
       if(st.cooldown <= 0){
         st.cooldown = 2000; // 2000(冷卻) + 3000(警示) = 每5秒觸發一次攻擊
         st.strikeX = player.x; st.strikeY = player.y;
+        st.telegraph = 3000;
+      }
+    },
+    // 混亂中的雷丘：同樣的雷擊陣（鎖定位置 → 警示圈倒數3秒 → 落雷），只是目標改成離自己最近的敵人，落雷只傷害敵人、不傷玩家。
+    // 倒數照常進行：不管有沒有混亂，一定要倒數完才會落雷（混亂開始時已經在倒數的雷擊也會繼續倒數）
+    confusedAttack(dt, boss, st, target){
+      if(st.telegraph > 0){
+        st.telegraph -= dt;
+        if(st.telegraph <= 0){
+          for(const e of enemies){
+            if(e === boss || e.hp <= 0) continue;
+            if(dist({x:st.strikeX,y:st.strikeY}, e) < st.strikeRadius){
+              e.hp -= boss.dmg; e.hitFlash = 6;
+              if(e.hp <= 0 && !confusedKillQueue.includes(e)) confusedKillQueue.push(e);
+            }
+          }
+          particles.push({type:'lightningStrike', x:st.strikeX, y:st.strikeY, vx:0,vy:0, life:18,maxLife:18, color:'#fff9c4', radius:st.warnRadius, seed:Math.random()*Math.PI*2});
+        }
+        return;
+      }
+      st.cooldown -= dt;
+      if(st.cooldown <= 0 && target){
+        st.cooldown = 2000;
+        st.strikeX = target.x; st.strikeY = target.y;
         st.telegraph = 3000;
       }
     },
@@ -3880,6 +3920,28 @@ const UPGRADE_POOL = [
     apply:(p)=>{p.upgradePicks.armor=(p.upgradePicks.armor||0)+1;}},
 ];
 
+// ---------- 挑戰模式：升級選項湊不滿 3 張時，用「微幅強化」隨機補滿（不限次數、不封頂） ----------
+// 每種強化每次提升 MINI_UPGRADE_RATE（目前 2%）：力量／攻速／生命／回復／移動（回復是「每秒回復 最大HP的 +2%」，與成就點的每秒回復算法相同）
+const MINI_UPGRADE_RATE = 0.02;
+const MINI_UPGRADE_PCT_TEXT = (MINI_UPGRADE_RATE*100).toFixed(MINI_UPGRADE_RATE*100 % 1 ? 1 : 0) + '%';
+const MINI_UPGRADE_POOL = [
+  {id:'miniDmg', title:()=>'微幅力量提升',
+    desc:(p)=>`所有攻擊傷害 +${MINI_UPGRADE_PCT_TEXT}（已累積 ${p.upgradePicks.miniDmg||0} 次）`,
+    apply:(p)=>{ p.dmgMult*=1+MINI_UPGRADE_RATE; p.upgradePicks.miniDmg=(p.upgradePicks.miniDmg||0)+1; }},
+  {id:'miniAtk', title:()=>'微幅反應加速',
+    desc:(p)=>`特殊招式的攻擊速度 +${MINI_UPGRADE_PCT_TEXT}（已累積 ${p.upgradePicks.miniAtk||0} 次）`,
+    apply:(p)=>{ p.atkSpeedBase*=1+MINI_UPGRADE_RATE; p.upgradePicks.miniAtk=(p.upgradePicks.miniAtk||0)+1; }},
+  {id:'miniHp', title:()=>'微幅生命強化',
+    desc:(p)=>`HP上限 +${MINI_UPGRADE_PCT_TEXT}（已累積 ${p.upgradePicks.miniHp||0} 次）`,
+    apply:(p)=>{ const d=p.maxHp*MINI_UPGRADE_RATE; p.maxHp+=d; p.hp+=d; p.upgradePicks.miniHp=(p.upgradePicks.miniHp||0)+1; }},
+  {id:'miniRegen', title:()=>'微幅生命回復',
+    desc:(p)=>`每秒回復 最大HP的 +${MINI_UPGRADE_PCT_TEXT}（已累積 ${p.upgradePicks.miniRegen||0} 次）`,
+    apply:(p)=>{ p.hpRegen=(p.hpRegen||0)+p.maxHp*MINI_UPGRADE_RATE; p.upgradePicks.miniRegen=(p.upgradePicks.miniRegen||0)+1; }},
+  {id:'miniSpeed', title:()=>'微幅腳程訓練',
+    desc:(p)=>`移動速度 +${MINI_UPGRADE_PCT_TEXT}（已累積 ${p.upgradePicks.miniSpeed||0} 次）`,
+    apply:(p)=>{ p.speed*=1+MINI_UPGRADE_RATE; p.upgradePicks.miniSpeed=(p.upgradePicks.miniSpeed||0)+1; }},
+];
+
 // ---------- 技能等級上限 ----------
 const SPECIAL_MAX_LEVEL = 10;
 
@@ -3912,6 +3974,13 @@ function getUpgradeChoices(){
   while(chosen.length < 3 && pool.length>0){
     const i = Math.floor(Math.random()*pool.length);
     chosen.push(pool[i]); pool.splice(i,1);
+  }
+  // 挑戰模式：技能與數值強化都選不滿3張時（例如全部滿級），缺的張數改用微幅強化（隨機且不重複）補滿，讓升級永遠有3個選項可以選
+  if(gameMode === 'challenge' && chosen.length < 3){
+    for(const m of shuffle(MINI_UPGRADE_POOL.slice())){
+      if(chosen.length >= 3) break;
+      chosen.push(m);
+    }
   }
   return shuffle(chosen.slice(0,3));
 }
@@ -4297,12 +4366,16 @@ function update(dt){
   for(let i=bullets.length-1;i>=0;i--){
     const b = bullets[i];
     if(b.seeking){
-      if(!b.target || !enemies.includes(b.target)){
-        b.target = nearestEnemy(b.x,b.y);
-      }
-      if(b.target){
-        const ang = Math.atan2(b.target.y-b.y, b.target.x-b.x);
-        b.vx = Math.cos(ang)*b.speed; b.vy = Math.sin(ang)*b.speed;
+      if(b.searchDelay > 0){
+        b.searchDelay -= dt; // 發射後先朝發射方向飛一小段，時間到才開始尋找目標
+      }else{
+        if(!b.target || !enemies.includes(b.target)){
+          b.target = b.volley ? pickSeedTarget(b) : nearestEnemy(b.x,b.y);
+        }
+        if(b.target){
+          const ang = Math.atan2(b.target.y-b.y, b.target.x-b.x);
+          b.vx = Math.cos(ang)*b.speed; b.vy = Math.sin(ang)*b.speed;
+        }
       }
     }
     const stepX = b.vx*(dt/16.7), stepY = b.vy*(dt/16.7);
@@ -4545,7 +4618,7 @@ function draw(){
     const s = worldToScreen(e.x,e.y);
     // 頭目的警示特效（如雷丘的落雷警示圈）可能畫在頭目本體以外的位置（例如玩家所在處），
     // 所以永遠都要畫，不能被下面「頭目本體不在畫面內」的裁切判斷一起跳過。
-    if(e.isBoss && !(e.confusedTimer > 0)) BOSS_DEFS[e.bossKey].drawTelegraph(s, e, e.bossState); // 混亂中的頭目招式暫停，不畫警示
+    if(e.isBoss && (!(e.confusedTimer > 0) || BOSS_DEFS[e.bossKey].confusedAttack)) BOSS_DEFS[e.bossKey].drawTelegraph(s, e, e.bossState); // 混亂中的頭目招式暫停，不畫警示（雷丘混亂時仍會出招，要畫警示圈）
     if(s.x < -60 || s.x > W+60 || s.y < -60 || s.y > H+60) continue;
     const eImg = ENEMY_IMG_ELS[e.name];
     if(eImg && eImg.complete && eImg.naturalWidth>0){
@@ -5163,6 +5236,8 @@ function renderPauseStats(){
     const picks = p.upgradePicks[id]||0;
     upgradesHtml += `<div class="pSkillRow"><span>${upgradeLabels[id]}</span><span>${picks}/${UPGRADE_MAX_LEVEL}</span></div>`;
   }
+  const miniTotal = MINI_UPGRADE_POOL.reduce((n,m)=>n+(p.upgradePicks[m.id]||0), 0);
+  if(miniTotal > 0) upgradesHtml += `<div class="pSkillRow"><span>微幅強化（每次 +${MINI_UPGRADE_PCT_TEXT}）</span><span>${miniTotal} 次</span></div>`;
 
   let skillsHtml = '';
   for(const id in p.specialsState){
