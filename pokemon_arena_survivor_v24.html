@@ -1258,24 +1258,14 @@ const SPECIAL_DEFS = {
   // ---------- 鬼斯系列（幽靈屬性，特色：閃避反擊） ----------
   strangeLight:{
     type:'ghost',
-    name:'奇異光線', flavor:'鬼斯的招牌絕技：每1秒朝最近的敵人發射一顆半透明灰色光球。光球沒有攻擊力，但會穿透所有敵人，路徑上每隻敵人各有一次機會陷入混亂5秒（頭目機率減半）。混亂的敵人會改成攻擊離自己最近的敵人，不再攻擊玩家；沒有可攻擊對象的頭目會停在原地不動。升級會讓光球變大、飛得更遠',
-    desc:(lvl)=>`冷卻 1.0s（不隨等級改變）・穿透・混亂機率 ${Math.round(strangeLightChance(lvl)*100)}%（頭目 ${Math.round(strangeLightChance(lvl)*50)}%）・混亂 5 秒・光球大小 ×${strangeLightScale(lvl).toFixed(1)}・射程 ${Math.round(strangeLightRange(lvl))}`,
+    name:'奇異光線', flavor:'鬼斯的招牌絕技：每1秒朝最近的敵人發射一顆半透明灰色光球。光球沒有攻擊力，但會穿透所有敵人，路徑上每隻敵人各有一次機會陷入混亂5秒（頭目機率減半）。混亂的敵人會改成攻擊離自己最近的敵人，不再攻擊玩家；沒有可攻擊對象的頭目會停在原地不動。升級會讓光球變大、飛得更遠。每次成功閃避攻擊時，還會額外再發射一顆，朝「路徑上能打到最多還沒混亂的敵人」的方向飛去',
+    desc:(lvl)=>`冷卻 1.0s（不隨等級改變）・穿透・混亂機率 ${Math.round(strangeLightChance(lvl)*100)}%（頭目 ${Math.round(strangeLightChance(lvl)*50)}%）・混亂 5 秒・光球大小 ×${strangeLightScale(lvl).toFixed(1)}・射程 ${Math.round(strangeLightRange(lvl))}・每次閃避成功額外發射一顆`,
     hideDps:true, // 沒有攻擊力：升級卡不顯示「傷害提升」
     estimateDps(){ return 0; },
     update(dt,p,st){
       st.cooldown = (st.cooldown||0) - dt;
-      if(st.cooldown <= 0){
-        const target = nearestConfusableEnemy(p.x,p.y); // 優先打還沒混亂的敵人（含頭目）
-        const range = strangeLightRange(st.level);
-        if(target && dist(p,target) <= range + target.r){ // 目標進入射程才發射
-          st.cooldown = 1000/p.atkSpeed;
-          const ang = Math.atan2(target.y-p.y, target.x-p.x);
-          bullets.push({x:p.x,y:p.y,vx:Math.cos(ang)*7,vy:Math.sin(ang)*7,r:11*strangeLightScale(st.level),dmg:0,
-            pierce:9999,hitSet:new Set(), // 穿透：每隻敵人只判定一次，光球繼續往前飛
-            maxDist:range,traveled:0,life:1e9, // 射程以實際飛行距離（像素）計算，與螢幕更新率無關
-            color:'rgba(190,190,200,0.55)',kind:'strangelight',moveType:this.type,
-            confuseChance:strangeLightChance(st.level)});
-        }
+      if(st.cooldown <= 0 && fireStrangeLight(p, st.level, false)){ // 最近的敵人進入射程才發射
+        st.cooldown = 1000/p.atkSpeed;
       }
     }
   },
@@ -1367,6 +1357,27 @@ function updateConfusedEnemy(e, spd, dt){
     if(t.hp <= 0 && !confusedKillQueue.includes(t)) confusedKillQueue.push(t);
   }
 }
+// 奇異光線：朝最近、還沒混亂的敵人直線發射半透明灰色光球（穿透、沒有傷害、命中有機率使敵人混亂）
+// densest=true：閃避反擊的那一顆，改朝「路徑上能打到最多還沒混亂的敵人」的方向發射
+// 回傳是否成功發射：射程內沒有可以打到的敵人時不發射
+function fireStrangeLight(p, lvl, densest){
+  const range = strangeLightRange(lvl);
+  const r = 11*strangeLightScale(lvl);
+  let ang = null;
+  if(densest){
+    ang = densestOrbAngle(p, range, r, e=>!(e.confusedTimer > 0));
+  }else{
+    const target = nearestConfusableEnemy(p.x,p.y);
+    if(target && dist(p,target) <= range + target.r) ang = Math.atan2(target.y-p.y, target.x-p.x);
+  }
+  if(ang === null) return false;
+  bullets.push({x:p.x,y:p.y,vx:Math.cos(ang)*7,vy:Math.sin(ang)*7,r,dmg:0,
+    pierce:9999,hitSet:new Set(), // 穿透：每隻敵人只判定一次，光球繼續往前飛
+    maxDist:range,traveled:0,life:1e9, // 射程以實際飛行距離（像素）計算，與螢幕更新率無關
+    color:'rgba(190,190,200,0.55)',kind:'strangelight',moveType:'ghost',
+    confuseChance:strangeLightChance(lvl)});
+  return true;
+}
 // 影子球：直線發射半透明紫色大圓球，穿透路徑上所有敵人（每隻只造成一次傷害，不會爆炸）
 // 大小固定為 ×4；射程隨技能等級增加（Lv.1 600 → Lv.10 1000 像素，以實際飛行距離計算，與螢幕更新率無關）
 // densest=false：朝最近的敵人發射（一般冷卻觸發）；densest=true：朝「路徑上能打到最多敵人」的方向發射（閃避反擊的那一顆）
@@ -1376,7 +1387,7 @@ function fireShadowBall(p, lvl, densest){
   const orbR = 11*strangeLightScale(10);
   let ang = null;
   if(densest){
-    ang = densestShadowBallAngle(p, range, orbR);
+    ang = densestOrbAngle(p, range, orbR);
   }else{
     const target = nearestEnemy(p.x,p.y);
     if(target && dist(p,target) <= range + target.r) ang = Math.atan2(target.y-p.y, target.x-p.x);
@@ -1389,8 +1400,9 @@ function fireShadowBall(p, lvl, densest){
   return true;
 }
 // 逐一試「對準每一隻射程內的敵人」這個方向，算出光球路徑（長度=射程、寬度=光球大小）會打到幾隻，選打到最多的；一樣多時選離玩家較近的
-function densestShadowBallAngle(p, range, orbR){
-  const cand = enemies.filter(e=>dist(p,e) <= range + e.r);
+// filter：只把符合條件的敵人算進去（例如奇異光線只算還沒混亂的敵人）
+function densestOrbAngle(p, range, orbR, filter){
+  const cand = enemies.filter(e=>dist(p,e) <= range + e.r && (!filter || filter(e)));
   if(!cand.length) return null;
   const aims = cand.slice().sort((a,b)=>dist(p,a)-dist(p,b)).slice(0,60); // 最多試最近的60個方向，避免敵人很多時計算太重
   let bestAng = null, bestCount = 0, bestDist = Infinity;
@@ -3211,6 +3223,7 @@ function showDodgeEffect(){
   dodgeCountThisRun++; // 累計閃避次數成就
   player._dodgeFlash = 36; // 閃避成功：分身殘影顯示約0.6秒後淡出
   particles.push({type:'dodgeText', x:player.x, y:player.y-player.r-10, vx:0, vy:-0.7, life:32, maxLife:32, color:'#ffffff'});
+  if(player.specialsState.strangeLight) fireStrangeLight(player, player.specialsState.strangeLight.level, true); // 鬼斯/鬼斯通/耿鬼：每次閃避成功，奇異光線也額外發射一顆（朝能打到最多還沒混亂的敵人的方向）
   if(player.specialsState.shadowBall) fireShadowBall(player, player.specialsState.shadowBall.level, true); // 耿鬼：每次閃避成功，額外發射一顆影子球（反擊），朝敵人最多的方向
 }
 function gemTierFor(val){
@@ -4094,7 +4107,9 @@ const XP_NEED_TABLE = [
   7175,7241,7306,7371,7485,7551,7616,7682,7748
 ];
 function xpNeedFor(level){
-  return XP_NEED_TABLE[level-1] ?? XP_NEED_TABLE[XP_NEED_TABLE.length-1];
+  if(level <= XP_NEED_TABLE.length) return XP_NEED_TABLE[level-1];
+  // Lv.100 沿用 Lv.99 的需求（7748）；Lv.100 之後每升一級，升級所需經驗就再多 7748 的 5%（線性增加，不是複利）
+  return Math.round(XP_NEED_TABLE[XP_NEED_TABLE.length-1] * (1 + 0.05*(level-100)));
 }
 
 function gainXp(v){
